@@ -6,12 +6,12 @@ def register_blueprints(app: Flask):
     """
     # Importar blueprints
     from app.routes.auth import auth_bp
-    # from app.routes.users import users_bp
+    from app.routes.users import users_bp
     # from app.routes.products import products_bp
     
     # Registrar blueprints
     app.register_blueprint(auth_bp)
-    # app.register_blueprint(users_bp)
+    app.register_blueprint(users_bp)
     # app.register_blueprint(products_bp)
     
     # Blueprint para rutas de salud/status

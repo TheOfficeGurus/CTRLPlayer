@@ -30,6 +30,6 @@ def login():
     return jsonify({"token": f'Bearer {token}'}),200
 
 @auth_bp.route('/verify',methods=['POST'])
-@authorize(required_claims={'service': 'ATS','environment':'development'})
+@authorize(required_claims={'service': 'ATS'})
 def verify():
     return message.success_response("Token is valid")
