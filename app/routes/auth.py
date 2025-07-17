@@ -27,9 +27,9 @@ def login():
         return message.error_response(str(e.message))
     except Exception as e:
         return message.error_response(f'login: {str(e)}',500)
-    return jsonify({"token": token}),200
+    return jsonify({"token": f'Bearer {token}'}),200
 
 @auth_bp.route('/verify',methods=['POST'])
 @authorize(required_claims={'service': 'ATS','environment':'development'})
 def verify():
-    return message.success_response("valid")
+    return message.success_response("Token is valid")

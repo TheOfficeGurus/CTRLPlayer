@@ -4,7 +4,8 @@ from dateutil import parser
 import datetime
 from authlib.jose import JsonWebEncryption as jwe
 from app.config import Config as app_config
-from app.exceptions.custom_exceptions import TokenInvalidCredential , TokenExpired, TokenClaimsMismatch
+from app.exceptions.custom_exceptions import TokenExpired, TokenClaimsMismatch
+from app.utils.helpers import error_response
 import json
 
 
@@ -14,8 +15,12 @@ def authorize(required_claims=None):
         def decorated_wrapper(*args, **kwargs):
             auth_header = request.headers.get('Authorization',"")
             if not auth_header:
-                return jsonify({'error': 'Token missing'}), 401
-            token = auth_header.split(" ")[1]
+                return error_response('Token missing',401)
+                # raise TokenInvalidAuth()
+            if "Bearer" not in auth_header:
+                return error_response('Token incompleted or missing',401)
+                # raise TokenInvalidAuth()
+            token = auth_header.split(" ")[2]
             try:
                 payload = jwe().deserialize_compact(token, app_config._KEY_)
                 data = json.loads(payload['payload'].decode())
@@ -27,14 +32,14 @@ def authorize(required_claims=None):
                     exp = parser.parse(data['exp'])
                     if datetime.datetime.now(tz=datetime.timezone.utc) > exp:
                         raise TokenExpired()
-            except TokenInvalidCredential as e:
-                return jsonify({'error': f'{e.message}'}), 401
+            # except TokenInvalidAuth as e:
+            #     return jsonify({'error': f'{e.message}'}), 401
             except TokenExpired as e:
-                return jsonify({'error': f'{e.message}'}), 401
+                return error_response(str(e.message),401)
             except TokenClaimsMismatch as e:
-                return jsonify({'error': f'{e.message}'}),403
+                return error_response(str(e.message),403)
             except Exception as e:
-                return jsonify({'error': f' invalid token: {str(e)}'}),500
+                return error_response(f' invalid token: {str(e)}',500)
                 
             return f(*args, **kwargs)
         return decorated_wrapper
