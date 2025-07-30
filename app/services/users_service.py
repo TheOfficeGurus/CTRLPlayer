@@ -69,7 +69,7 @@ class UserService:
             conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}', check_filter, attributes=['sAMAccountName'])
             
             if len(conn.entries) > 0 and conn.entries[0].entry_dn != user_dn:
-                raise UserEmpIDInUseException()
+                raise UserEmpIDInUseException(user_dn['description'].value)
             
             changes = {'employeeID': [(MODIFY_REPLACE, [str(user['employeeID'])])]}
             conn.modify(user_dn, changes)
