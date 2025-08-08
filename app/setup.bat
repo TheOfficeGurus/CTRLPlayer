@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 echo ========================================
 echo Creando entorno virtual en carpeta venv
 echo ========================================
@@ -14,14 +14,15 @@ echo.
 echo ========================
 echo Activando entorno virtual
 echo ========================
+
 call venv\Scripts\activate
 
-if exist requirements.txt (
+if exist C:\github\theofficegurus\CTRLPlayer\app\requirements.txt (
     echo.
     echo =====================================
     echo Instalando dependencias de requirements.txt
     echo =====================================
-    pip install -r requirements.txt
+    pip install -r C:\github\theofficegurus\CTRLPlayer\app\requirements.txt
 ) else (
     echo.
     echo No se encontro requirements.txt
