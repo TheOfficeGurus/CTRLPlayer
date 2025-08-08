@@ -2,7 +2,8 @@ import jwt
 import json
 import datetime
 # import ldap3
-from ldap3 import Server, Connection, ALL, NTLM,MODIFY_REPLACE
+import subprocess
+from ldap3 import Server, Connection, ALL, NTLM,MODIFY_REPLACE,SASL, GSSAPI
 from app.config import Config as app_config
 from app.exceptions.custom_exceptions import UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
 from app.utils.helpers import  error_response,success_response
@@ -12,20 +13,48 @@ class UserService:
     
     @staticmethod    
     def validate_users(payload):
+        user = json.loads(json.dumps(payload))
+        
+        commands = {
+        "UserAD":"""
+            $sam = "@@@username@@@"
+            Get-ADUser -Filter { SamAccountName -eq $sam } -Properties EmployeeId, Name | Select-Object Name, SamAccountName, employeeID | ConvertTo-Json -Depth 2
+        """
+    }   
+
+        results = {}
+
+        for name, ps_script in commands.items():
+            ps_script = (
+                ps_script.replace("@@@username@@@",user['username'])
+            )
+            results[name] = subprocess.run(
+                ["powershell", "-Command", ps_script], capture_output=True, text=True
+            ) 
+            if results[name].returncode != 0:
+                results[name] = f"Error: {results[name].stderr.strip()}"
+            else:
+                results[name] = results[name].stdout.strip()
+                        
+        return  results #success_response(results, f'ha funcionado.')
+        
+    @staticmethod    
+    def validate_users_odl(payload):
         
         user = json.loads(json.dumps(payload))
         # Conexión usando autenticación integrada (Kerberos/NTLM)
         server = Server(app_config.__PPUBLIC_DOMAIN__, get_info=ALL)
-        conn = Connection(server, authentication=NTLM, auto_bind=True)
+        conn = Connection(server, authentication=SASL, sasl_mechanism=GSSAPI, auto_bind=True)
+        print("Conexión exitosa:", conn.bound)
         
         try:
             search_filter = f'sAMAccountName={user['username']}'
             conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
                     
             if not conn.entries:
-                raise UserNotFoundException()
+                raise UserNotFoundException("User not found")
             if len(conn.entries) == 0:
-                raise UserNotFoundException()
+                raise UserNotFoundException("User not found")
             
             user_entry =conn.entries[0]
             current_employee_id = user_entry.employeeID.value if user_entry.employeeID else "No definido"
@@ -37,30 +66,30 @@ class UserService:
             }
             
         except UserNotFoundException as e:
-            return error_response(str(e.message),401)
+            return {"Error":str(e.message), "code":401} # error_response(str(e.message),401)
         except Exception as e:
-            return error_response(f"validating user: {str(e)}",500)
+            return {"Error":str(e), "code":500} #error_response(f"validating user: {str(e)}",500)
         finally:
             conn.unbind()
         
-        return success_response(user_data, f'employeeID: {current_employee_id}')
+        return user_data #success_response(user_data, f'employeeID: {current_employee_id}')
     
     @staticmethod
     def modify_user(payload):
         
         # Conexión usando autenticación integrada (Kerberos/NTLM)
         server = Server(app_config.__PPUBLIC_DOMAIN__, get_info=ALL)
-        conn = Connection(server, authentication=NTLM, auto_bind=True)
+        conn = Connection(server, authentication=SASL, sasl_mechanism=GSSAPI, auto_bind=True)
         
         user = json.loads(json.dumps(payload))
         try:
-            search_filter = f'sAMAccountName={user_data['username']}'
+            search_filter = f'sAMAccountName={user['username']}'
             conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
             
             if not conn.entries:
-                raise UserNotFoundException()
+                raise UserNotFoundException("User not found")
             if len(conn.entries) == 0:
-                raise UserNotFoundException()
+                raise UserNotFoundException("User not found")
                 
             user_entry = conn.entries[0]
             user_dn = user_entry.entry_dn

@@ -29,7 +29,12 @@ def login():
         return message.error_response(f'login: {str(e)}',500)
     return jsonify({"token": f'Bearer {token}'}),200
 
-@auth_bp.route('/verify',methods=['POST'])
+@auth_bp.route('/verify',methods=['POST'])  # type: ignore
 @authorize(required_claims={'service': 'ATS'})
 def verify():
     return message.success_response("Token is valid")
+
+@auth_bp.route('/radiocheck',methods=['GET']) # type:ignore
+# @authorize(required_claims={'service': 'ATS'})
+def radio_check():
+    return message.success_response("Radio check is valid")

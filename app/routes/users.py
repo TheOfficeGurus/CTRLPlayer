@@ -8,9 +8,32 @@ import app.utils.helpers as message
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 
-@users_bp.route('/verify', methods=['POST'])
+@users_bp.route('/verify', methods=['POST']) #type: ignore
 @authorize()
 def verify():
+    try:
+        if request.json is None:
+            raise InvalidRequestError()
+        if [key for key in request.json if key not in ['username', 'fullname']]:
+            raise TokenClaimsMismatch()
+        
+    ### validate user cretentials here
+    ##TODO: implement user validation logic with database 
+    
+        result = UserService.validate_users(request.json)
+        
+    except InvalidRequestError as e:
+        return message.error_response(str(e.message))
+    except TokenClaimsMismatch as e:
+        return message.error_response(str(e.message))
+    except Exception as e:
+        return message.error_response(f'login: {str(e)}',500)
+    
+    return message.success_response(result)
+
+@users_bp.route('/verify_old', methods=['POST']) #type: ignore
+@authorize()
+def verify_old():
     try:
         if request.json is None:
             raise InvalidRequestError()
