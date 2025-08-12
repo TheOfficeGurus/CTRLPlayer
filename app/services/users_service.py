@@ -18,12 +18,10 @@ class UserService:
         commands = {
         "UserAD":"""
             $sam = "@@@username@@@"
-            Get-ADUser -Filter { SamAccountName -eq $sam } -Properties EmployeeId, Name | Select-Object Name, SamAccountName, employeeID | ConvertTo-Json -Depth 2
+            Get-ADUser -Filter { SamAccountName -eq $sam } -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
         """
     }   
-
         results = {}
-
         for name, ps_script in commands.items():
             ps_script = (
                 ps_script.replace("@@@username@@@",user['username'])
@@ -34,15 +32,18 @@ class UserService:
             if results[name].returncode != 0:
                 results[name] = f"Error: {results[name].stderr.strip()}"
             else:
-                results[name] = results[name].stdout.strip()
-                        
-        return  results #success_response(results, f'ha funcionado.')
+                if(results[name]['Name'].strip() == user['fullname'] and results[name]['SamAccountName']==user['username']):                
+                    results[name] = results[name].stdout.strip()
+                else:
+                    results[name] = {"Error": f"the Entra Name does not match with with the provided {results[name]['Name']}", "code":401}                        
+                
+        return  results
         
     @staticmethod    
     def validate_users_odl(payload):
         
         user = json.loads(json.dumps(payload))
-        # Conexión usando autenticación integrada (Kerberos/NTLM)
+        # Conexión usando autenticación integrada (Kerberos)
         server = Server(app_config.__PPUBLIC_DOMAIN__, get_info=ALL)
         conn = Connection(server, authentication=SASL, sasl_mechanism=GSSAPI, auto_bind=True)
         print("Conexión exitosa:", conn.bound)

@@ -43,7 +43,7 @@ def verify_old():
     ### validate user cretentials here
     ##TODO: implement user validation logic with database 
     
-        result = UserService.validate_users(request.json)
+        result = UserService.validate_users_odl(request.json)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
