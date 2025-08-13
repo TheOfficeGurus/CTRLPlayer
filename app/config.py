@@ -11,4 +11,5 @@ class Config:
     ##############################
     SECRET_KEY="4_v3c35_h4y_qu3_t0m4r_d3c1510n35..."
     _KEY_ = hashlib.sha256(SECRET_KEY.encode()).digest()
-    __PPUBLIC_DOMAIN__ = "ESDC01.TOGDOMAINSV.com"
+    __PUBLIC_SERVER_DOMAIN__ = "ESDC01.TOGDOMAINSV.com"
+    __PUBLIC_DOMAIN__ = "TOGDOMAINSV.com"

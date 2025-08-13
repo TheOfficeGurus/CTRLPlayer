@@ -44,13 +44,13 @@ class UserService:
         
         user = json.loads(json.dumps(payload))
         # Conexión usando autenticación integrada (Kerberos)
-        server = Server(app_config.__PPUBLIC_DOMAIN__, get_info=ALL)
+        server = Server(app_config.__PUBLIC_SERVER_DOMAIN__, get_info=ALL)
         conn = Connection(server, authentication=SASL, sasl_mechanism=GSSAPI, auto_bind=True)
         print("Conexión exitosa:", conn.bound)
         
         try:
             search_filter = f'sAMAccountName={user['username']}'
-            conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
+            conn.search(f'dc={app_config.__PUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
                     
             if not conn.entries:
                 raise UserNotFoundException("User not found")
@@ -79,13 +79,13 @@ class UserService:
     def modify_user(payload):
         
         # Conexión usando autenticación integrada (Kerberos/NTLM)
-        server = Server(app_config.__PPUBLIC_DOMAIN__, get_info=ALL)
+        server = Server(app_config.__PUBLIC_SERVER_DOMAIN__, get_info=ALL)
         conn = Connection(server, authentication=SASL, sasl_mechanism=GSSAPI, auto_bind=True)
         
         user = json.loads(json.dumps(payload))
         try:
             search_filter = f'sAMAccountName={user['username']}'
-            conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
+            conn.search(f'dc={app_config.__PUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PUBLIC_DOMAIN__.split(".")[1]}',search_filter, attributes=['employeeID', 'displayName'])
             
             if not conn.entries:
                 raise UserNotFoundException("User not found")
@@ -96,7 +96,7 @@ class UserService:
             user_dn = user_entry.entry_dn
                 
             check_filter = f'(employeeID={user['employeeID']})'
-            conn.search(f'dc={app_config.__PPUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PPUBLIC_DOMAIN__.split(".")[1]}', check_filter, attributes=['sAMAccountName'])
+            conn.search(f'dc={app_config.__PUBLIC_DOMAIN__.split(".")[0]},dc={app_config.__PUBLIC_DOMAIN__.split(".")[1]}', check_filter, attributes=['sAMAccountName'])
             
             if len(conn.entries) > 0 and conn.entries[0].entry_dn != user_dn:
                 raise UserEmpIDInUseException(user_dn['description'].value)
