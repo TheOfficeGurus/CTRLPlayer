@@ -26,17 +26,29 @@ class UserService:
             ps_script = (
                 ps_script.replace("@@@username@@@",user['username'])
             )
-            results[name] = subprocess.run(
+            prc = subprocess.run(
                 ["powershell", "-Command", ps_script], capture_output=True, text=True
             ) 
-            if results[name].returncode != 0:
-                results[name] = f"Error: {results[name].stderr.strip()}"
-            else:
-                if(results[name]['Name'].strip() == user['fullname'] and results[name]['SamAccountName']==user['username']):                
-                    results[name] = results[name].stdout.strip()
-                else:
-                    results[name] = {"Error": f"the Entra Name does not match with with the provided {results[name]['Name']}", "code":401}                        
+            if prc.returncode != 0:
+                results[name] = f"Error: {prc.stderr.strip()}"
+                continue
+            
+            
+            try:
+                data = json.loads(prc.stdout) 
+            except json.JSONDecodeError:
+                results[name] = {"Error": "Invalid JSON output", "code": 500}
+                continue
                 
+            if data.get('Name', '').strip() == user['fullname'] and data.get('SamAccountName') == user['username']:
+                results[name] = prc.stdout.strip()
+            else:
+                results[name] = {
+            "Error": f"the Entra Name does not match with the provided {data.get('Name')}",
+            "code": 401
+            }   
+            
+            
         return  results
         
     @staticmethod    
