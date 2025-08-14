@@ -2,8 +2,10 @@ import json
 from flask import Blueprint, request, jsonify
 from app.services.auth_service import AuthService
 from app.middleware.jwt_validations import authorize
+from app.config import Config as app_config
 from app.exceptions.custom_exceptions import InvalidRequestError, TokenClaimsMismatch
 import app.utils.helpers as message
+import os
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -15,6 +17,33 @@ def login():
             raise InvalidRequestError()
         if [key for key in request.json if key not in ['service', 'environment', 'phrase']]:
             raise TokenClaimsMismatch()
+        sk_list= []
+        conf=[]
+        services=[]
+        
+        with open(f'{app_config.__secret_path__}/2A3BD56F-2227-42BD-9378-32EA031982F8.json', 'r') as fh:
+            for line in fh:
+                sk_list.append(line.strip())
+                
+        if not sk_list[0]==request.json['phrase'] or not sk_list[1]==request.json['environment']:
+            raise TokenClaimsMismatch()
+        
+        with open(f'{app_config.__secret_path__}/services.json', 'r') as fh:
+            for line in fh:
+                services.append(line)
+                
+        if not  request.json['service'] in services:
+            raise TokenClaimsMismatch()
+            
+        with open(f'{app_config.__secret_path__}/conf.json', 'r') as fh:
+            for line in fh:
+                conf.append(line)
+            
+        if not conf:
+            raise TokenClaimsMismatch()
+        
+        app_config.__OU__ = conf[0]
+        
         
     ### validate user cretentials here
     ##TODO: implement user validation logic with database 

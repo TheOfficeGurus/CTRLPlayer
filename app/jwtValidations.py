@@ -42,16 +42,3 @@ def decode_jwt_token(token):
         print(f"Error decoding token: {e}")
         return None
     
-if __name__ == "__main__":
-    # Example usage
-    payload = {
-    "service": "ATS",
-    "environment": "verde amarela",
-    "phrase": "vamarela"
-}
-    token = create_jwt_token(payload)
-    print(f"Generated JWT Token: {token}")
-    
-    decoded_payload = decode_jwt_token(token)
-    
-    print(f"Decoded Payload: {decoded_payload}")
