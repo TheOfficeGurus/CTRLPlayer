@@ -74,6 +74,7 @@ class UserService:
         #validate if empID is inUse
         try:
             usr_pay=  json.loads(json.dumps(payload))
+            results = {}
             
             if not UserService.exists_FullEmployee(usr_pay['username']):
                 raise UserNotFoundException(f"This username `{usr_pay['username']}` does not exists or you don have access to the OU folder")
@@ -95,7 +96,6 @@ class UserService:
             
             #Validate changes
             pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """            
-            results = {}
             data =""
             pwsh_command = pwsh_command.replace('@@@username@@@',usr_pay['username'])
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
