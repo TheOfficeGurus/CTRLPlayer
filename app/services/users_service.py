@@ -26,7 +26,7 @@ class UserService:
                 ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
             )
             prc = subprocess.run(
-                ["powershell", "-Command", ps_script], capture_output=True, text=True
+                ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
             ) 
             if prc.returncode != 0:
                 results[name] = f"Error: {prc.stderr.strip()}"
@@ -57,7 +57,7 @@ class UserService:
         command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
         command = command.replace("@@@_EmpID_@@@", empid)
         prc = subprocess.run(
-                        ["powershell", "-Command", command], capture_output=True, text=True
+                        ["powershell", "-Command", command.strip()], capture_output=True, text=True
                     )
         return bool(prc.stdout.strip())
     @staticmethod    
@@ -80,7 +80,7 @@ class UserService:
                 next_comnnad = next_comnnad.replace("@@@username@@@",usr_pay['username'])
                 next_comnnad = next_comnnad.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
                 prc = subprocess.run(
-                    ["powershell", "-Command", next_comnnad], capture_output=True, text=True
+                    ["powershell", "-Command", next_comnnad.strip()], capture_output=True, text=True
                 ) 
                 if prc.returncode != 0:
                     results['Employee'] = f"Error: {prc.stderr.strip()}"
@@ -96,7 +96,7 @@ class UserService:
             command.replace("@@@username@@@",usr_pay['username'])
             command.replace("@@@_searchbase_@@@",app_config.__OU__)
             prc = subprocess.run(
-                ["powershell", "-Command", command], capture_output=True, text=True
+                ["powershell", "-Command", command.strip()], capture_output=True, text=True
                 ) 
             if prc.returncode != 0:
                 raise UserADNoUpdatedException(f"Message: {prc.stderr.strip()}")
