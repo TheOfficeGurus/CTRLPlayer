@@ -132,8 +132,14 @@ class UserService:
         try:
             
             val = UserService.exists_empId(user['employeeId'])
-            result['response'] = f"valValue: {val}"
-            result['empId'] = f"userRequest: {user['employeeId']}"
+            result['response'] = val
+            result['empId'] = user['employeeId']
+            command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
+                """
+            command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
+            command = command.replace("@@@_EmpID_@@@", user['employeeId'])
+            result['command']= command
+            
             
         except UserEmpIDInUseException as e:
             return error_response(str(e.message),409)
