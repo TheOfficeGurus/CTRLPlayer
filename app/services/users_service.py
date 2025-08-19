@@ -128,12 +128,13 @@ class UserService:
     def validate_users_odl(payload):
         
         user = json.loads(json.dumps(payload))
+        result={}
         try:
-            next_comnnad = """[bool]$true"""
-            prc = subprocess.run(
-                ["powershell", "-Command", next_comnnad], capture_output=True, text=True
-            ) 
-            print(prc)
+            
+            val = UserService.exists_empId(user['employeeId'])
+            result['response'] = f"valValue: {val}"
+            result['empId'] = f"userRequest: {user['employeeId']}"
+            
         except UserEmpIDInUseException as e:
             return error_response(str(e.message),409)
         except UserNotFoundException as e:
@@ -145,4 +146,4 @@ class UserService:
         # finally:
         #     conn.unbind()
             
-        return prc.stdout.strip()
+        return result
