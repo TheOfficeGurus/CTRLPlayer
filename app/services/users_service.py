@@ -12,10 +12,7 @@ class UserService:
         user = json.loads(json.dumps(payload))
         
         commands = {
-        "VerifyUserAD":"""
-            $sam = "@@@username@@@"
-            Get-ADUser -Filter { SamAccountName -eq $sam } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
-        """
+        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """
         }   
         results = {}
         for name, ps_script in commands.items():
@@ -52,8 +49,7 @@ class UserService:
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
-        pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
-                """
+        pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID ) """
         pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
         pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
         prc = subprocess.run(
@@ -63,8 +59,7 @@ class UserService:
     
     @staticmethod
     def exists_FullEmployee(username:str) -> bool:
-        pwsh_command= """[bool]( Get-ADUser -Filter { @@@username@@@ -eq $sam } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID)
-                """
+        pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
         pwsh_command = pwsh_command.replace("@@@username@@@",username)
         pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
         prc = subprocess.run(
@@ -144,8 +139,7 @@ class UserService:
             val = UserService.exists_empId(user['employeeId'])
             result['response'] = val
             result['empId'] = user['employeeId']
-            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
-                """
+            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID ) """
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
             pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", user['employeeId'])
             result['pwsh_command']= pwsh_command

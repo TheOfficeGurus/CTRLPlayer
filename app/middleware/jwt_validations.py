@@ -22,6 +22,8 @@ def authorize(required_claims=None):
                 # raise TokenInvalidAuth()
             token = auth_header.split(" ")[2]
             try:
+                if app_config.__OU__ =="":
+                    raise TokenClaimsMismatch()
                 payload = jwe().deserialize_compact(token, app_config._KEY_)
                 data = json.loads(payload['payload'].decode())
                 if required_claims:

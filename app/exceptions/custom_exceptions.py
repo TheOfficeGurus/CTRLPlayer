@@ -24,6 +24,9 @@ class TokenInvalidAuth(JWTExeptions):
 class TokenClaimsMismatch(JWTExeptions):
     def __init__(self):
         super().__init__("Unauthorized: claim mismatch")
+class TokenConfigExeption(JWTExeptions):
+    def __init__(self):
+        super().__init__("Config: Missing configuration contact the system admin")
         
 class UserExceptions(Exception):    
     def __init__(self, message):
