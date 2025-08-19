@@ -114,19 +114,19 @@ class UserService:
                     
                     
         except json.JSONDecodeError:
-            results['Error'] = {"Error Invalid JSON output"}
+            results['Error'] = "Error Invalid JSON output"
             return results
         except UserEmpIDInUseException as e:
-            results['Error']={f"Message: {e.message}"}
+            results['Error']=f"Message: {e.message}"
             return results
         except UserNotFoundException as e:
-            results['Error']={f"Message: {e.message}"}
+            results['Error']=f"Message: {e.message}"
             return   results
         except UserADNoUpdatedException as e:
-            results['Error']={f"Message: {e.message}"}
+            results['Error']=f"Message: {e.message}"
             return results
         except Exception as e:
-            results['Error']={f"modifying user: {str(e)}"}
+            results['Error']=f"modifying user: {str(e)}"
             return results
         # finally:
             # conn.unbind()
