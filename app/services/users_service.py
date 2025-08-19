@@ -52,7 +52,7 @@ class UserService:
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
-        command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
+        command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
                 """
         command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
         command = command.replace("@@@_EmpID_@@@", empid)
