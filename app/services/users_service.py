@@ -2,7 +2,7 @@ import json
 import subprocess
 from app.config import Config as app_config
 from app.exceptions.custom_exceptions import UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
-from app.utils.helpers import  error_response,success_response
+from app.utils.helpers import  error_response
 # from app.models.user import User
 
 class UserService:
@@ -114,19 +114,19 @@ class UserService:
                     
                     
         except json.JSONDecodeError:
-            results['Error'] = error_response("Error Invalid JSON output",500)
+            results['Error'] = {"Error Invalid JSON output"}
             return results
         except UserEmpIDInUseException as e:
-            results['Error']=error_response(f"Message: {e.message}", status_code= 409)
+            results['Error']={f"Message: {e.message}"}
             return results
         except UserNotFoundException as e:
-            results['Error']=error_response(f"Message: {e.message}", status_code= 500)
+            results['Error']={f"Message: {e.message}"}
             return   results
         except UserADNoUpdatedException as e:
-            results['Error']=error_response(f"Message: {e.message}", status_code= 304)
+            results['Error']={f"Message: {e.message}"}
             return results
         except Exception as e:
-            results['Error']=error_response(f"modifying user: {str(e)}", status_code= 500)
+            results['Error']={f"modifying user: {str(e)}"}
             return results
         # finally:
             # conn.unbind()
