@@ -94,11 +94,11 @@ class UserService:
             results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
             
             #Validate changes
-            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """            
             results = {}
             data =""
-            pwsh_command.replace("@@@username@@@",usr_pay['username'])
-            pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
+            pwsh_command = pwsh_command.replace('@@@username@@@',usr_pay['username'])
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
             prc = subprocess.run(
                 ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                 ) 
