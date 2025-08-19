@@ -12,7 +12,7 @@ class UserService:
         user = json.loads(json.dumps(payload))
         
         commands = {
-        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """
+        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object  Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
         }   
         results = {}
         for name, ps_script in commands.items():
@@ -36,8 +36,8 @@ class UserService:
                 results[name] = {"Error": "Invalid JSON output", "code": 500}
                 continue
                 
-            if data.get('Name', '').strip() == user['fullname'] and data.get('SamAccountName') == user['username']:
-                results[name] = prc.stdout.strip()
+            if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
+                results[name] = data
             else:
                 results[name] = {
             "Error": f"the Entra Name does not match with the provided {data.get('Name')}",
@@ -84,8 +84,8 @@ class UserService:
 
             #replace EmpID            
             pwsh_command = """ Set-ADUser -Identity '@@@username@@@' -Replace @{employeeId='@@@_EmpID_@@@'} """
-            pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'])
-            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
+            pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'].strip())
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@",usr_pay['employeeId'].strip())
             prc = subprocess.run(
                 ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
             ) 
@@ -95,7 +95,7 @@ class UserService:
             results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
             
             #Validate changes
-            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
             data =""
             pwsh_command = pwsh_command.replace('@@@username@@@',usr_pay['username'])
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
@@ -106,8 +106,8 @@ class UserService:
                 raise UserADNoUpdatedException(f"{prc.stderr.strip()}")
             
             data = json.loads(prc.stdout.strip()) 
-            if data.get('Name').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
-                results['Employee'] = prc.stdout.strip()
+            if data.get('fullname').strip() == usr_pay['fullname'].strip() and data.get('username').strip() == usr_pay['username'].strip():
+                results['Employee'] = data
             
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
