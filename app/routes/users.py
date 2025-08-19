@@ -45,6 +45,10 @@ def verify_old():
     
         result = UserService.validate_users_odl(request.json)
         
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
+            
+        
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
     except TokenClaimsMismatch as e:
@@ -67,6 +71,8 @@ def modify():
     ##TODO: implement user validation logic with database 
     
         result = UserService.modify_user(request.json)
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))

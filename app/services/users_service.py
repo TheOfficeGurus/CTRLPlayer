@@ -48,18 +48,30 @@ class UserService:
             }   
         
         return  results
-        
+
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
-        command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
+        pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
                 """
-        command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        command = command.replace("@@@_EmpID_@@@", empid)
+        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
+        pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
         prc = subprocess.run(
-                        ["powershell", "-Command", command.strip()], capture_output=True, text=True
+                        ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                     )
         return prc.stdout.strip().lower() == "true"
+    
+    @staticmethod
+    def exists_FullEmployee(username:str) -> bool:
+        pwsh_command= """[bool]( Get-ADUser -Filter { @@@username@@@ -eq $sam } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID)
+                """
+        pwsh_command = pwsh_command.replace("@@@username@@@",username)
+        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
+        prc = subprocess.run(
+                        ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                    )
+        return prc.stdout.strip().lower() == "true"
+    
     @staticmethod    
     def modify_user(payload):
         results ={}
@@ -68,60 +80,58 @@ class UserService:
         try:
             usr_pay=  json.loads(json.dumps(payload))
             
+            if not UserService.exists_FullEmployee(usr_pay['username']):
+                raise UserNotFoundException(f"This username `{usr_pay['username']}` does not exists or you don have access to the OU folder")
+            
             if UserService.exists_empId(usr_pay['employeeId']):
                 raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
-                
-            #replace EmpID
-            if results['username']==usr_pay['username'] :
-                next_comnnad = """
-                $sam = "@@@username@@@"
-                Set-ADUser -Identity $sam -Replace @{employeeId='@@@_EmpID_@@@'}
-                """
-                next_comnnad = next_comnnad.replace("@@@username@@@",usr_pay['username'])
-                next_comnnad = next_comnnad.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
-                prc = subprocess.run(
-                    ["powershell", "-Command", next_comnnad.strip()], capture_output=True, text=True
-                ) 
-                if prc.returncode != 0:
-                    results['Employee'] = f"Error: {prc.stderr.strip()}"
-                
-                results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
+
+            #replace EmpID            
+            pwsh_command = """ Set-ADUser -Identity '@@@username@@@' -Replace @{employeeId='@@@_EmpID_@@@'} """
+            pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'])
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
+            prc = subprocess.run(
+                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                raise UserADNoUpdatedException ("Error: {prc.stderr.strip()}")
+            
+            results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
             
             #Validate changes
-            command ="""
-            Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
-            """            
+            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2 """            
             results = {}
             data =""
-            command.replace("@@@username@@@",usr_pay['username'])
-            command.replace("@@@_searchbase_@@@",app_config.__OU__)
+            pwsh_command.replace("@@@username@@@",usr_pay['username'])
+            pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
             prc = subprocess.run(
-                ["powershell", "-Command", command.strip()], capture_output=True, text=True
+                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                 ) 
             if prc.returncode != 0:
-                raise UserADNoUpdatedException(f"Message: {prc.stderr.strip()}")
-            data = json.loads(prc.stdout) 
-            if data.get('Name', '').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
+                raise UserADNoUpdatedException(f"{prc.stderr.strip()}")
+            
+            data = json.loads(prc.stdout.strip()) 
+            if data.get('Name').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
                 results['Employee'] = prc.stdout.strip()
-                    
+            
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
             return results
         except UserEmpIDInUseException as e:
-            results['Error']=f"Message: {e.message}"
+            results['Error']=f"{e.message}"
             return results
         except UserNotFoundException as e:
-            results['Error']=f"Message: {e.message}"
+            results['Error']=f"{e.message}"
             return   results
         except UserADNoUpdatedException as e:
-            results['Error']=f"Message: {e.message}"
+            results['Error']=f"{e.message}"
             return results
         except Exception as e:
             results['Error']=f"modifying user: {str(e)}"
             return results
         # finally:
             # conn.unbind()
-        
+            
         return results #success_response(user_data, f'employeeID: {current_employee_id}')
     
     @staticmethod
@@ -134,11 +144,11 @@ class UserService:
             val = UserService.exists_empId(user['employeeId'])
             result['response'] = val
             result['empId'] = user['employeeId']
-            command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
+            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID )
                 """
-            command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
-            command = command.replace("@@@_EmpID_@@@", user['employeeId'])
-            result['command']= command
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", user['employeeId'])
+            result['pwsh_command']= pwsh_command
             
             
         except UserEmpIDInUseException as e:
