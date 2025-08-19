@@ -61,7 +61,7 @@ def modify():
     try:
         if request.json is None:
             raise InvalidRequestError()
-        if [key for key in request.json if key not in ['username', 'fullname']]:
+        if [key for key in request.json if key not in ['username', 'fullname','employeeId']]:
             raise TokenClaimsMismatch()
     ### validate user cretentials here
     ##TODO: implement user validation logic with database 

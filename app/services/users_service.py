@@ -49,36 +49,100 @@ class UserService:
         
         return  results
         
+    
+    @staticmethod
+    def exists_empId(empid:str) -> bool:
+        next_comnnad= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID)
+                """
+        next_comnnad = next_comnnad.replace("@@@_searchbase_@@@",app_config.__OU__)
+        next_comnnad = next_comnnad.replace("@@@_EmpID_@@@", empid)
+        prc = subprocess.run(
+                        ["powershell", "-Command", next_comnnad], capture_output=True, text=True
+                    )
+        return bool(prc.stdout.strip())
     @staticmethod    
+    def modify_user(payload):
+        results ={}
+        try:
+            usr_pay=  json.loads(json.dumps(payload))
+            
+            commands = {
+            "VerifyUserAD":"""
+            Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
+            """
+            }   
+            results = {}
+            data =""
+            for name, ps_script in commands.items():
+                ps_script = (
+                    ps_script.replace("@@@username@@@",usr_pay['username'])
+                )
+                ps_script = (
+                    ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
+                )
+                prc = subprocess.run(
+                    ["powershell", "-Command", ps_script], capture_output=True, text=True
+                ) 
+                if prc.returncode != 0:
+                    raise UserADNoUpdatedException(f"Message: {prc.stderr.strip()}")
+                
+                data = json.loads(prc.stdout) 
+                if data.get('Name', '').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
+                    results[name] = prc.stdout.strip()
+                
+                #validate if empID is inUse
+                if UserService.exists_empId(usr_pay['employeeId']):
+                    raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
+                
+                #replace EmpID
+                if results['username']==usr_pay['username'] :
+                    next_comnnad = """
+                    $sam = "@@@username@@@"
+                    Set-ADUser -Identity $sam -Replace @{employeeId='@@@_EmpID_@@@'}
+                    """
+                    next_comnnad = next_comnnad.replace("@@@username@@@",usr_pay['username'])
+                    next_comnnad = next_comnnad.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
+                    prc = subprocess.run(
+                        ["powershell", "-Command", next_comnnad], capture_output=True, text=True
+                    ) 
+                    if prc.returncode != 0:
+                        results[name] = f"Error: {prc.stderr.strip()}"
+                        continue
+                    
+                    results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
+                    
+                    
+                    
+        except json.JSONDecodeError:
+            results['Error'] = error_response("Error Invalid JSON output",500)
+            return results
+        except UserEmpIDInUseException as e:
+            results['Error']=error_response(f"Message: {e.message}", status_code= 409)
+            return results
+        except UserNotFoundException as e:
+            results['Error']=error_response(f"Message: {e.message}", status_code= 500)
+            return   results
+        except UserADNoUpdatedException as e:
+            results['Error']=error_response(f"Message: {e.message}", status_code= 304)
+            return results
+        except Exception as e:
+            results['Error']=error_response(f"modifying user: {str(e)}", status_code= 500)
+            return results
+        # finally:
+            # conn.unbind()
+        
+        return results #success_response(user_data, f'employeeID: {current_employee_id}')
+    
+    @staticmethod
     def validate_users_odl(payload):
         
         user = json.loads(json.dumps(payload))
         try:
-            user_data = {
-                "username": user['username'],
-                "fullname": user['fullname'],
-                "employeeID": user['employeeId']
-            }
-            
-        except UserNotFoundException as e:
-            return {"Error":str(e.message), "code":401} # error_response(str(e.message),401)
-        except Exception as e:
-            return {"Error":str(e), "code":500} #error_response(f"validating user: {str(e)}",500)
-        # finally:
-            # conn.unbind()
-        
-        return user_data #success_response(user_data, f'employeeID: {current_employee_id}')
-    
-    @staticmethod
-    def modify_user(payload):
-        
-        user = json.loads(json.dumps(payload))
-        try:
-            user_data = {
-                "username": user['username'],
-                "fullname": user['fullname'],
-                "employeeID": user['employeeId']
-            }
+            next_comnnad = """[bool]$true"""
+            prc = subprocess.run(
+                ["powershell", "-Command", next_comnnad], capture_output=True, text=True
+            ) 
+            print(prc)
         except UserEmpIDInUseException as e:
             return error_response(str(e.message),409)
         except UserNotFoundException as e:
@@ -90,4 +154,4 @@ class UserService:
         # finally:
         #     conn.unbind()
             
-        return success_response(user_data)
+        return prc.stdout.strip()

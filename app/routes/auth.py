@@ -21,21 +21,21 @@ def login():
         conf=[]
         services=[]
         
-        with open(f'{app_config.__secret_path__}/2A3BD56F-2227-42BD-9378-32EA031982F8.json', 'r') as fh:
+        with open(f'{app_config.__secret_path__}_{request.json['environment']}/2A3BD56F-2227-42BD-9378-32EA031982F8.json', 'r') as fh:
             for line in fh:
                 sk_list.append(line.strip())
                 
         if not sk_list[0]==request.json['phrase'] or not sk_list[1]==request.json['environment']:
             raise TokenClaimsMismatch()
         
-        with open(f'{app_config.__secret_path__}/services.json', 'r') as fh:
+        with open(f'{app_config.__secret_path__}_{request.json['environment']}/services.json', 'r') as fh:
             for line in fh:
                 services.append(line)
                 
         if not  request.json['service'] in services:
             raise TokenClaimsMismatch()
             
-        with open(f'{app_config.__secret_path__}/conf.json', 'r') as fh:
+        with open(f'{app_config.__secret_path__}_{request.json['environment']}/conf.json', 'r') as fh:
             for line in fh:
                 conf.append(line)
             
