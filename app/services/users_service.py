@@ -52,66 +52,57 @@ class UserService:
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
-        next_comnnad= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID)
+        command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID)
                 """
-        next_comnnad = next_comnnad.replace("@@@_searchbase_@@@",app_config.__OU__)
-        next_comnnad = next_comnnad.replace("@@@_EmpID_@@@", empid)
+        command = command.replace("@@@_searchbase_@@@",app_config.__OU__)
+        command = command.replace("@@@_EmpID_@@@", empid)
         prc = subprocess.run(
-                        ["powershell", "-Command", next_comnnad], capture_output=True, text=True
+                        ["powershell", "-Command", command], capture_output=True, text=True
                     )
         return bool(prc.stdout.strip())
     @staticmethod    
     def modify_user(payload):
         results ={}
+        
+        #validate if empID is inUse
         try:
             usr_pay=  json.loads(json.dumps(payload))
             
-            commands = {
-            "VerifyUserAD":"""
-            Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
-            """
-            }   
-            results = {}
-            data =""
-            for name, ps_script in commands.items():
-                ps_script = (
-                    ps_script.replace("@@@username@@@",usr_pay['username'])
-                )
-                ps_script = (
-                    ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
-                )
+            if UserService.exists_empId(usr_pay['employeeId']):
+                raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
+                
+            #replace EmpID
+            if results['username']==usr_pay['username'] :
+                next_comnnad = """
+                $sam = "@@@username@@@"
+                Set-ADUser -Identity $sam -Replace @{employeeId='@@@_EmpID_@@@'}
+                """
+                next_comnnad = next_comnnad.replace("@@@username@@@",usr_pay['username'])
+                next_comnnad = next_comnnad.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
                 prc = subprocess.run(
-                    ["powershell", "-Command", ps_script], capture_output=True, text=True
+                    ["powershell", "-Command", next_comnnad], capture_output=True, text=True
                 ) 
                 if prc.returncode != 0:
-                    raise UserADNoUpdatedException(f"Message: {prc.stderr.strip()}")
+                    results['Employee'] = f"Error: {prc.stderr.strip()}"
                 
-                data = json.loads(prc.stdout) 
-                if data.get('Name', '').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
-                    results[name] = prc.stdout.strip()
-                
-                #validate if empID is inUse
-                if UserService.exists_empId(usr_pay['employeeId']):
-                    raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
-                
-                #replace EmpID
-                if results['username']==usr_pay['username'] :
-                    next_comnnad = """
-                    $sam = "@@@username@@@"
-                    Set-ADUser -Identity $sam -Replace @{employeeId='@@@_EmpID_@@@'}
-                    """
-                    next_comnnad = next_comnnad.replace("@@@username@@@",usr_pay['username'])
-                    next_comnnad = next_comnnad.replace("@@@_EmpID_@@@",usr_pay['employeeId'])
-                    prc = subprocess.run(
-                        ["powershell", "-Command", next_comnnad], capture_output=True, text=True
-                    ) 
-                    if prc.returncode != 0:
-                        results[name] = f"Error: {prc.stderr.strip()}"
-                        continue
-                    
-                    results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
-                    
-                    
+                results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
+            
+            #Validate changes
+            command ="""
+            Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID | ConvertTo-Json -Depth 2
+            """            
+            results = {}
+            data =""
+            command.replace("@@@username@@@",usr_pay['username'])
+            command.replace("@@@_searchbase_@@@",app_config.__OU__)
+            prc = subprocess.run(
+                ["powershell", "-Command", command], capture_output=True, text=True
+                ) 
+            if prc.returncode != 0:
+                raise UserADNoUpdatedException(f"Message: {prc.stderr.strip()}")
+            data = json.loads(prc.stdout) 
+            if data.get('Name', '').strip() == usr_pay['fullname'] and data.get('SamAccountName') == usr_pay['username']:
+                results['Employee'] = prc.stdout.strip()
                     
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
