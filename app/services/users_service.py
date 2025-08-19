@@ -59,7 +59,7 @@ class UserService:
         prc = subprocess.run(
                         ["powershell", "-Command", command.strip()], capture_output=True, text=True
                     )
-        return bool(prc.stdout.strip())
+        return prc.stdout.strip().lower() == "true"
     @staticmethod    
     def modify_user(payload):
         results ={}
