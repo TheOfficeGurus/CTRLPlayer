@@ -58,10 +58,7 @@ def login():
     
     if [key for key in request.json if key not in ['service', 'environment', 'phrase']]:
         return Response(json.dumps({"error": "parameter missing or not provided"}),status=400,mimetype='application/json')   
-    
-    ### validate user cretentials here
-    ##TODO: implement user validation logic with database 
-    
+        
     try: 
         token = create_jwt_token(request.json)
     except Exception as e:

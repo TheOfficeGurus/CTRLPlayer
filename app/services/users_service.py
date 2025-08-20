@@ -3,7 +3,8 @@ import subprocess
 from app.config import Config as app_config
 from app.exceptions.custom_exceptions import UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
 from app.utils.helpers import  error_response
-# from app.models.user import User
+from app.models.employeeChangeLog import EmployeeChangeLog as dbEmpLog
+from app.models.base import db
 
 class UserService:
     
@@ -27,15 +28,14 @@ class UserService:
             ) 
             if prc.returncode != 0:
                 results[name] = f"Error: {prc.stderr.strip()}"
-                continue
-            
+                continue            
             
             try:
                 data = json.loads(prc.stdout) 
             except json.JSONDecodeError:
                 results[name] = {"Error": "Invalid JSON output", "code": 500}
                 continue
-                
+            
             if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
                 results[name] = data
             else:
@@ -67,6 +67,20 @@ class UserService:
                     )
         return prc.stdout.strip().lower() == "true"
     
+    @staticmethod
+    def get_employee_general_info(username:str):
+        pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
+        data =""
+        pwsh_command = pwsh_command.replace('@@@username@@@',username)
+        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
+        prc = subprocess.run(
+            ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+            ) 
+        if prc.returncode != 0:
+            raise UserADNoUpdatedException(f"{prc.stderr.strip()}")
+        
+        return json.loads(prc.stdout.strip()) 
+    
     @staticmethod    
     def modify_user(payload):
         results ={}
@@ -81,7 +95,14 @@ class UserService:
             
             if UserService.exists_empId(usr_pay['employeeId']):
                 raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
+            
+            data = UserService.get_employee_general_info(usr_pay['username'])
 
+            if not dbEmpLog.find_by_username(usr_pay['username']):
+                employee = dbEmpLog(data.get('username').strip(),data.get('EmployeeID').strip(),data.get('fullname').strip(),'sys','base info before change')
+                # employee = dbEmpLog(usr_pay['username'],usr_pay['employeeId'].strip(),usr_pay['fullname'],'sys','base info before change')
+                employee.save()
+                
             #replace EmpID            
             pwsh_command = """ Set-ADUser -Identity '@@@username@@@' -Replace @{employeeId='@@@_EmpID_@@@'} """
             pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'].strip())
@@ -92,22 +113,15 @@ class UserService:
             if prc.returncode != 0:
                 raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
             
-            results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
+            results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])            
             
             #Validate changes
-            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
-            data =""
-            pwsh_command = pwsh_command.replace('@@@username@@@',usr_pay['username'])
-            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
-            prc = subprocess.run(
-                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-                ) 
-            if prc.returncode != 0:
-                raise UserADNoUpdatedException(f"{prc.stderr.strip()}")
-            
-            data = json.loads(prc.stdout.strip()) 
+            data = UserService.get_employee_general_info(usr_pay['username'])
             if data.get('fullname').strip() == usr_pay['fullname'].strip() and data.get('username').strip() == usr_pay['username'].strip():
                 results['Employee'] = data
+            
+            employee = dbEmpLog(usr_pay['username'],usr_pay['employeeId'],usr_pay['fullname'],usr_pay['updatedBy'],'new employee Id assignation')
+            employee.save()
             
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
@@ -124,36 +138,5 @@ class UserService:
         except Exception as e:
             results['Error']=f"modifying user: {str(e)}"
             return results
-        # finally:
-            # conn.unbind()
             
-        return results #success_response(user_data, f'employeeID: {current_employee_id}')
-    
-    @staticmethod
-    def validate_users_odl(payload):
-        
-        user = json.loads(json.dumps(payload))
-        result={}
-        try:
-            
-            val = UserService.exists_empId(user['employeeId'])
-            result['response'] = val
-            result['empId'] = user['employeeId']
-            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID ) """
-            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
-            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", user['employeeId'])
-            result['pwsh_command']= pwsh_command
-            
-            
-        except UserEmpIDInUseException as e:
-            return error_response(str(e.message),409)
-        except UserNotFoundException as e:
-            return error_response(str(e.message),404)
-        except UserADNoUpdatedException as e:
-            return error_response(str(e.message),304)
-        except Exception as e:
-            return error_response(f"modifying user: {str(e)}",500)
-        # finally:
-        #     conn.unbind()
-            
-        return result
+        return results     

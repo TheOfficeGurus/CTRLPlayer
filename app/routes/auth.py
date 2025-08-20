@@ -18,11 +18,7 @@ def login():
         if [key for key in request.json if key not in ['service', 'environment', 'phrase']]:
             raise TokenClaimsMismatch()
         
-        AuthService.LoadConfigs(request.json)
-        
-        
-    ### validate user cretentials here
-    ##TODO: implement user validation logic with database 
+        AuthService.LoadConfigs(request.json)     
     
         token = AuthService.generate_token(request.json)
         
@@ -33,11 +29,6 @@ def login():
     except Exception as e:
         return message.error_response(f'login: {str(e)}',500)
     return jsonify({"token": f'Bearer {token}'}),200
-
-@auth_bp.route('/verify',methods=['POST'])  # type: ignore
-@authorize(required_claims={'service': 'ATS'})
-def verify():
-    return message.success_response("Token is valid")
 
 @auth_bp.route('/radiocheck',methods=['GET']) # type:ignore
 # @authorize(required_claims={'service': 'ATS'})
