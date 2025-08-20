@@ -7,7 +7,7 @@ import app.utils.helpers as message
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 
 @users_bp.route('/verify', methods=['POST'])
-@authorize()
+@authorize(required_claims={'service': 'ATS'})
 def verify():
     try:
         if request.json is None:
