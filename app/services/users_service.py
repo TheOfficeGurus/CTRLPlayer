@@ -90,7 +90,7 @@ class UserService:
                 ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
             ) 
             if prc.returncode != 0:
-                raise UserADNoUpdatedException ("Error: {prc.stderr.strip()}")
+                raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
             
             results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
             
