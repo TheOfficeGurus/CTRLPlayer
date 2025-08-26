@@ -15,7 +15,27 @@ def verify():
         if [key for key in request.json if key not in ['username', 'fullname']]:
             raise TokenClaimsMismatch()
             
-        result = UserService.validate_users(request.json)
+        result = UserService.validate_username(request.json)
+        
+    except InvalidRequestError as e:
+        return message.error_response(str(e.message))
+    except TokenClaimsMismatch as e:
+        return message.error_response(str(e.message))
+    except Exception as e:
+        return message.error_response(f'login: {str(e)}',500)
+    
+    return message.success_response(result)
+
+@users_bp.route('/verify_fullname', methods=['POST'])
+@authorize(required_claims={'service': 'ATS'})
+def verify_fullname():
+    try:
+        if request.json is None:
+            raise InvalidRequestError()
+        if [key for key in request.json if key not in ['username', 'fullname']]:
+            raise TokenClaimsMismatch()
+            
+        result = UserService.validate_fullname(request.json)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))

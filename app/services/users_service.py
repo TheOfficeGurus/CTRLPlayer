@@ -9,7 +9,7 @@ from app.models.base import db
 class UserService:
     
     @staticmethod    
-    def validate_users(payload):
+    def validate_username(payload):
         user = json.loads(json.dumps(payload))
         
         commands = {
@@ -40,9 +40,39 @@ class UserService:
                 results[name] = data
             else:
                 results[name] = {
-            "Error": f"the Entra Name does not match with the provided {data.get('Name')}",
+            "Error": f"the Entra name does not match with the provided {data.get('Name')}",
             "code": 401
             }   
+        
+        return  results
+    @staticmethod    
+    def validate_fullname(payload):
+        user = json.loads(json.dumps(payload))
+        results = {}
+        data=json.loads("")
+        
+        command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+        command = command.replace("@@@fullname@@@",user['fullname'])
+        
+        command= command.replace("@@@_searchbase_@@@",app_config.__OU__)
+        prc = subprocess.run(
+            ["powershell", "-Command", command.strip()], capture_output=True, text=True
+        ) 
+        if prc.returncode != 0:
+            results['Employee'] = f"Error: {prc.stderr.strip()}"
+        
+        try:
+            data = json.loads(prc.stdout) 
+        except json.JSONDecodeError:
+            results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
+        
+        if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
+            results['Employee'] = data
+        else:
+            results['Employee'] = {
+        "Error": f"the Entra name does not match with the provided {data.get('Name')}",
+        "code": 401
+        }
         
         return  results
 
@@ -58,7 +88,7 @@ class UserService:
         return prc.stdout.strip().lower() == "true"
     
     @staticmethod
-    def exists_FullEmployee(username:str) -> bool:
+    def exists_FullEmployee_username(username:str) -> bool:
         pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
         pwsh_command = pwsh_command.replace("@@@username@@@",username)
         pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
@@ -68,7 +98,7 @@ class UserService:
         return prc.stdout.strip().lower() == "true"
     
     @staticmethod
-    def get_employee_general_info(username:str):
+    def get_employee_general_info_username(username:str):
         pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
         data =""
         pwsh_command = pwsh_command.replace('@@@username@@@',username)
@@ -90,13 +120,13 @@ class UserService:
             usr_pay=  json.loads(json.dumps(payload))
             results = {}
             
-            if not UserService.exists_FullEmployee(usr_pay['username']):
+            if not UserService.exists_FullEmployee_username(usr_pay['username']):
                 raise UserNotFoundException(f"This username `{usr_pay['username']}` does not exists or you don have access to the OU folder")
             
             if UserService.exists_empId(usr_pay['employeeId']):
                 raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
             
-            data = UserService.get_employee_general_info(usr_pay['username'])
+            data = UserService.get_employee_general_info_username(usr_pay['username'])
 
             if not dbEmpLog.find_by_username(usr_pay['username']):
                 employee = dbEmpLog(data.get('username').strip(),data.get('EmployeeID').strip(),data.get('fullname').strip(),'sys','base info before change')
@@ -116,7 +146,7 @@ class UserService:
             results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])            
             
             #Validate changes
-            data = UserService.get_employee_general_info(usr_pay['username'])
+            data = UserService.get_employee_general_info_username(usr_pay['username'])
             if data.get('fullname').strip() == usr_pay['fullname'].strip() and data.get('username').strip() == usr_pay['username'].strip():
                 results['Employee'] = data
             
