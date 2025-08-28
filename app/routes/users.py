@@ -32,7 +32,7 @@ def verify_fullname():
     try:
         if request.json is None:
             raise InvalidRequestError()
-        if [key for key in request.json if key not in ['username', 'fullname']]:
+        if [key for key in request.json if key not in ['fullname']]:
             raise TokenClaimsMismatch()
             
         result = UserService.validate_fullname(request.json)
