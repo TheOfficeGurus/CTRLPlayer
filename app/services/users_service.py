@@ -74,8 +74,7 @@ class UserService:
         "code": 401
         }
         
-        return  results
-    
+        return  results    
     
     @staticmethod    
     def validate_empid(payload):
@@ -86,7 +85,7 @@ class UserService:
         }
         results = {}
         for name, ps_script in commands.items():
-            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
+            ps_script = (ps_script.replace("@@@_EmpID_@@@", empid))
             ps_script = (
                 ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
             )
