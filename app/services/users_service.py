@@ -75,7 +75,35 @@ class UserService:
         }
         
         return  results
-
+    
+    
+    @staticmethod    
+    def validate_empid(payload):
+        empid = json.loads(json.dumps(payload))
+        
+        commands = {
+        "EmployeeInfo":""" Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+        }
+        results = {}
+        for name, ps_script in commands.items():
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
+            ps_script = (
+                ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
+            )
+            prc = subprocess.run(
+                ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                results[name] = f"Error: {prc.stderr.strip()}"
+                continue
+            
+            try:
+                data = json.loads(prc.stdout) 
+                results[name] = data
+            except json.JSONDecodeError:
+                results[name] = {"Error": "Invalid JSON output", "code": 500}
+                continue
+        return  results
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
