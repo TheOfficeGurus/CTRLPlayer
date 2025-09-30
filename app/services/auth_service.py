@@ -28,7 +28,7 @@ class AuthService:
         
         with open(f'{app_config.__secret_path__}_{environment}/services.json', 'r') as fh:
             for line in fh:
-                services.append(line)
+                services.append(line.strip())
                 
         if not  service in services:
             raise TokenClaimsMismatch() 
