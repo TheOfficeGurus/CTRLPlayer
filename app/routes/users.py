@@ -74,16 +74,16 @@ def getByEmpid():
     try:
         if request.json is None:
             raise InvalidRequestError()
-        if [key for key in request.json if key not in ['employeeId']]:
+        if [key for key in request.json if key not in ['EmployeeID']]:
             raise TokenClaimsMismatch()
             
-        result = UserService.validate_username(request.json)
+        result = UserService.validate_empid(request.json)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
     except TokenClaimsMismatch as e:
         return message.error_response(str(e.message))
     except Exception as e:
-        return message.error_response(f'login: {str(e)}',500)
+        return message.error_response(f'getByEmpid: {str(e)}',500)
     
     return message.success_response(result)

@@ -1,7 +1,7 @@
 import json
 import subprocess
 from app.config import Config as app_config
-from app.exceptions.custom_exceptions import UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
+from app.exceptions.custom_exceptions import APIException, UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
 from app.utils.helpers import  error_response
 from app.models.employeeChangeLog import EmployeeChangeLog as dbEmpLog
 from app.models.base import db
@@ -85,16 +85,14 @@ class UserService:
         }
         results = {}
         for name, ps_script in commands.items():
-            ps_script = (ps_script.replace("@@@_EmpID_@@@", empid))
-            ps_script = (
-                ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
-            )
+            ps_script = ps_script.replace("@@@_EmpID_@@@", empid['EmployeeID'])
+            ps_script = ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
             prc = subprocess.run(
                 ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
             ) 
             if prc.returncode != 0:
                 results[name] = f"Error: {prc.stderr.strip()}"
-                continue
+                raise APIException(results[name],500) 
             
             try:
                 data = json.loads(prc.stdout) 
