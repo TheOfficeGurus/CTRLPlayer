@@ -49,7 +49,7 @@ class UserService:
     def validate_fullname(payload):
         user = json.loads(json.dumps(payload))
         results = {}
-        data=json.loads("")
+        data=user
         
         command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
         command = command.replace("@@@fullname@@@",user['fullname'])
@@ -66,7 +66,7 @@ class UserService:
         except json.JSONDecodeError:
             results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
         
-        if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
+        if data.get('fullname').strip() == user['fullname'].strip() :
             results['Employee'] = data
         else:
             results['Employee'] = {
