@@ -40,7 +40,7 @@ class AuthService:
         if not conf:
             raise TokenClaimsMismatch()
         
-        app_config.__OU__ = conf[0]
+        app_config.__OU__ = conf
         
     
     @staticmethod    

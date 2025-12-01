@@ -21,7 +21,7 @@ class UserService:
                 ps_script.replace("@@@username@@@",user['username'])
             )
             ps_script = (
-                ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
+                ps_script.replace("@@@_searchbase_@@@",app_config.__OU__[0])
             )
             prc = subprocess.run(
                 ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
@@ -50,21 +50,21 @@ class UserService:
         user = json.loads(json.dumps(payload))
         results = {}
         data=user
-        
-        command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
-        command = command.replace("@@@fullname@@@",user['fullname'])
-        
-        command= command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        prc = subprocess.run(
-            ["powershell", "-Command", command.strip()], capture_output=True, text=True
-        ) 
-        if prc.returncode != 0:
-            results['Employee'] = f"Error: {prc.stderr.strip()}"
-        
-        try:
-            data = json.loads(prc.stdout) 
-        except json.JSONDecodeError:
-            results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
+        command =''
+        for uo in app_config.__OU__:
+            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+            command = command.replace("@@@fullname@@@",user['fullname'])
+            command= command.replace("@@@_searchbase_@@@",uo)        
+            prc = subprocess.run(
+                ["powershell", "-Command", command.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                results['Employee'] = f"Error: {prc.stderr.strip()}"
+                break
+            try:
+                data = json.loads(prc.stdout) 
+            except json.JSONDecodeError:
+                results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
         
         if data.get('fullname').strip() == user['fullname'].strip() :
             results['Employee'] = data
@@ -86,7 +86,7 @@ class UserService:
         results = {}
         for name, ps_script in commands.items():
             ps_script = ps_script.replace("@@@_EmpID_@@@", empid['EmployeeID'])
-            ps_script = ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
+            ps_script = ps_script.replace("@@@_searchbase_@@@",app_config.__OU__[0])
             prc = subprocess.run(
                 ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
             ) 
