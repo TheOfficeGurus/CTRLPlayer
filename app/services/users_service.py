@@ -49,10 +49,10 @@ class UserService:
     def validate_fullname(payload):
         user = json.loads(json.dumps(payload))
         results = {}
-        data=user
+        data={'fullname':'Nil'}
         command =''
         for uo in app_config.__OU__:
-            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase '@@@_searchbase_@@@'-Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
             command = command.replace("@@@fullname@@@",user['fullname'])
             command= command.replace("@@@_searchbase_@@@",uo)        
             prc = subprocess.run(
@@ -60,20 +60,27 @@ class UserService:
             ) 
             if prc.returncode != 0:
                 results['Employee'] = f"Error: {prc.stderr.strip()}"
-                break
-            try:
-                data = json.loads(prc.stdout) 
-            except json.JSONDecodeError:
-                results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
+            else:
+                try:
+                    data = json.loads(prc.stdout) 
+                    break
+                except json.JSONDecodeError:
+                    results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
         
-        if data.get('fullname').strip() == user['fullname'].strip() :
-            results['Employee'] = data
-        else:
-            results['Employee'] = {
-        "Error": f"the Entra name does not match with the provided {data.get('Name')}",
-        "code": 401
-        }
-        
+        try:
+            if data.get('fullname').strip() == user['fullname'].strip() :
+                results['Employee'] = data
+            else:
+                results['Employee'] = {
+            "Error": f"the Entra name does not match with the provided {data.get('Name')}",
+            "code": 401
+            }
+                raise Exception(results)
+        except json.JSONDecodeError:
+            results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
+        # except Exception as e:
+        #     # err = str(e)
+        #     results['Employee'] = {"Error": f"{str(e)}", "code": 500}
         return  results    
     
     @staticmethod    

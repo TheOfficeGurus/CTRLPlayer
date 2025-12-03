@@ -35,7 +35,7 @@ class AuthService:
             
         with open(f'{app_config.__secret_path__}_{environment}/conf.json', 'r') as fh:
             for line in fh:
-                conf.append(line)
+                conf.append(line.rstrip("\n"))
             
         if not conf:
             raise TokenClaimsMismatch()
