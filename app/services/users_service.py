@@ -110,7 +110,7 @@ class UserService:
                     results['EmployeeInfo'] = {"Error": "Invalid JSON output", "code": 500}
                     continue
         try:
-            if data.get('fullname').strip() == empid['fullname'].strip() :
+            if data.get('EmployeeID').strip() == empid['EmployeeID'].strip() :
                 results['EmployeeInfo'] = data
             else:
                 results['EmployeeInfo'] = {
