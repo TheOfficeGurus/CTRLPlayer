@@ -87,29 +87,28 @@ class UserService:
     def validate_empid(payload):
         empid = json.loads(json.dumps(payload))
         data = {'fullname':'Nill'}
-        commands = {
-        "EmployeeInfo":""" Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase  @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
-        }
+        commands =""" Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+        
         results = {}
-        for name, ps_script in commands.items():
-            for ou in app_config.__OU__:
-                ps_script = ps_script.replace("@@@_EmpID_@@@", empid['EmployeeID'])
-                ps_script = ps_script.replace("@@@_searchbase_@@@",ou)
-                prc = subprocess.run(
-                    ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
-                ) 
-                if prc.returncode != 0:
-                    results[name] = f"Error: {prc.stderr.strip()}"
+        # for name, ps_script in commands.items():
+        for ou in app_config.__OU__:
+            commands = commands.replace("@@@_EmpID_@@@", empid['EmployeeID'])
+            commands = commands.replace("@@@_searchbase_@@@",ou)
+            prc = subprocess.run(
+                ["powershell", "-Command", commands.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                results['EmployeeInfo'] = f"Error: {prc.stderr.strip()}"
+                continue
+                # raise APIException(results['EmployeeInfo'],500) 
+            else: 
+                try:
+                    data = json.loads(prc.stdout)                     
+                    results['EmployeeInfo'] = data
+                    break
+                except json.JSONDecodeError:
+                    results['EmployeeInfo'] = {"Error": "Invalid JSON output", "code": 500}
                     continue
-                    # raise APIException(results[name],500) 
-                else: 
-                    try:
-                        data = json.loads(prc.stdout)                     
-                        results[name] = data
-                        break
-                    except json.JSONDecodeError:
-                        results[name] = {"Error": "Invalid JSON output", "code": 500}
-                        continue
         try:
             if data.get('fullname').strip() == empid['fullname'].strip() :
                 results['EmployeeInfo'] = data

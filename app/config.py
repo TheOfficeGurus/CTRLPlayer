@@ -10,7 +10,7 @@ class Config:
     __file_path__="2A3BD56F-2227-42BD-9378-32EA031982F8.json"
     __database__=""
     __database_phrase__=""
-    
+    __selected_uo__=''
     
     @staticmethod
     def getconf():
