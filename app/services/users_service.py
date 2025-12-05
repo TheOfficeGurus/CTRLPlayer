@@ -12,7 +12,7 @@ class UserService:
         user = json.loads(json.dumps(payload))
         data = {'username':'Nill'}
         commands = {
-        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase  @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase  "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
         }   
         results = {}
         for name, ps_script in commands.items():
@@ -52,7 +52,7 @@ class UserService:
         data={'fullname':'Nil'}
         command =''
         for uo in app_config.__OU__:
-            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase '@@@_searchbase_@@@'-Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
             command = command.replace("@@@fullname@@@",user['fullname'])
             command= command.replace("@@@_searchbase_@@@",uo)        
             prc = subprocess.run(
@@ -127,7 +127,7 @@ class UserService:
     @staticmethod
     def exists_empId(empid:str) -> bool:
         for uo in app_config.__OU__:
-            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID ) """
+            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object EmployeeID ) """
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
             pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
             prc = subprocess.run(
@@ -140,7 +140,7 @@ class UserService:
     @staticmethod
     def exists_FullEmployee_username(username:str) -> bool:
         for uo in app_config.__OU__:
-            pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
+            pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
             pwsh_command = pwsh_command.replace("@@@username@@@",username)
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
             prc = subprocess.run(
@@ -154,7 +154,7 @@ class UserService:
     def get_employee_general_info_username(username:str):
         result =''
         for uo in app_config.__OU__:
-            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
             pwsh_command = pwsh_command.replace('@@@username@@@',username)
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
             prc = subprocess.run(
@@ -191,7 +191,7 @@ class UserService:
                 employee.save()
                 
             #replace EmpID            
-            pwsh_command = """ Set-ADUser -Identity '@@@username@@@' -Replace @{employeeId='@@@_EmpID_@@@'} """
+            pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{employeeId="@@@_EmpID_@@@"} """
             pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'].strip())
             pwsh_command = pwsh_command.replace("@@@_EmpID_@@@",usr_pay['employeeId'].strip())
             prc = subprocess.run(
