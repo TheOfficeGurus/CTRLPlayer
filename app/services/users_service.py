@@ -256,19 +256,25 @@ class UserService:
             usr = json.loads(json.dumps(payload))        
                 
             if not UserService.exists_empId(usr['sup_employeeID']):
+                print('sup_emp not exists')
                 raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
             
             if not UserService.exists_empId(usr['guru_employeeID']):
+                print('guru emp not exists')
                 raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
                         
             sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
+            print('got sup Location')
             guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+            print('got gurudata Location')
             
             if guru_data:
                 if not dbEmpLog.find_by_username(guru_data['username']):
+                    print('new record on databae')
                     employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
                     employee.save()
                 
+                print('building setad query')
                 pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{Manager="@@@sup_Loc@@@"} """
                 pwsh_command = pwsh_command.replace('@@@sup_Loc@@@',sup_location)
                 pwsh_command = pwsh_command.replace('@@@username@@@',guru_data['username'])
@@ -276,19 +282,26 @@ class UserService:
                 ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                 )
                 if prc.returncode != 0:
+                    print('error on pwsh_command execution')
                     raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
                 
                 results['Assigned'] = UserService.exists_empId(usr['guru_employeeID'])
+                print('result assigned value')
                 #Validate changes
                 data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+                print('got data validation for data variable')
                 if data:
+                    print('we are sure the variable data has data')
                     if data['EmployeeID'].strip() == usr['guru_employeeID'].strip():                        
+                        print('emp id match with sent')
                         match = re.search(r"CN=([^,]+)", data['Manager'], re.IGNORECASE)
                         data['Manager'] = match.group(1).strip() if match else None                        
                         results['Employee'] = data
                         
+                        print('saving change on db')
                         employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],f'new supervisor assigned {data['Manager']} ')
                         employee.save()           
+                        print('saved')
                     # CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com
                 
         except json.JSONDecodeError:
