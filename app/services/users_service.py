@@ -1,40 +1,40 @@
 import json
 import subprocess
 from app.config import Config as app_config
-from app.exceptions.custom_exceptions import UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
+from app.exceptions.custom_exceptions import APIException, UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
 from app.utils.helpers import  error_response
 from app.models.employeeChangeLog import EmployeeChangeLog as dbEmpLog
 from app.models.base import db
 
 class UserService:
-    
     @staticmethod    
     def validate_username(payload):
         user = json.loads(json.dumps(payload))
-        
+        data = {'username':'Nill'}
         commands = {
-        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase  "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
         }   
         results = {}
         for name, ps_script in commands.items():
-            ps_script = (
-                ps_script.replace("@@@username@@@",user['username'])
-            )
-            ps_script = (
-                ps_script.replace("@@@_searchbase_@@@",app_config.__OU__)
-            )
-            prc = subprocess.run(
-                ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
-            ) 
-            if prc.returncode != 0:
-                results[name] = f"Error: {prc.stderr.strip()}"
-                continue            
-            
-            try:
-                data = json.loads(prc.stdout) 
-            except json.JSONDecodeError:
-                results[name] = {"Error": "Invalid JSON output", "code": 500}
-                continue
+            for uo in app_config.__OU__:
+                ps_script = (
+                    ps_script.replace("@@@username@@@",user['username'])
+                )
+                ps_script = (
+                    ps_script.replace("@@@_searchbase_@@@",app_config.__selected_uo__)
+                )
+                prc = subprocess.run(
+                    ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
+                ) 
+                if prc.returncode != 0:
+                    results[name] = f"Error: {prc.stderr.strip()}"
+                    continue            
+                
+                try:
+                    data = json.loads(prc.stdout) 
+                except json.JSONDecodeError:
+                    results[name] = {"Error": "Invalid JSON output", "code": 500}
+                    continue
             
             if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
                 results[name] = data
@@ -49,67 +49,124 @@ class UserService:
     def validate_fullname(payload):
         user = json.loads(json.dumps(payload))
         results = {}
-        data=json.loads("")
-        
-        command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
-        command = command.replace("@@@fullname@@@",user['fullname'])
-        
-        command= command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        prc = subprocess.run(
-            ["powershell", "-Command", command.strip()], capture_output=True, text=True
-        ) 
-        if prc.returncode != 0:
-            results['Employee'] = f"Error: {prc.stderr.strip()}"
+        data={'fullname':'Nil'}
+        command =''
+        for uo in app_config.__OU__:
+            command =""" Get-ADUser -Filter { Name -eq '@@@fullname@@@' } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+            command = command.replace("@@@fullname@@@",user['fullname'])
+            command= command.replace("@@@_searchbase_@@@",uo)        
+            prc = subprocess.run(
+                ["powershell", "-Command", command.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                results['Employee'] = f"Error: {prc.stderr.strip()}"
+            else:
+                try:
+                    data = json.loads(prc.stdout) 
+                    app_config.__selected_uo__ = uo
+                    break
+                except json.JSONDecodeError:
+                    results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
         
         try:
-            data = json.loads(prc.stdout) 
+            if data.get('fullname').strip() == user['fullname'].strip() :
+                results['Employee'] = data
+            else:
+                results['Employee'] = {
+            "Error": f"the Entra name does not match with the provided {data.get('Name')}",
+            "code": 401
+            }
+                raise Exception(results)
         except json.JSONDecodeError:
             results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
+        # except Exception as e:
+        #     # err = str(e)
+        #     results['Employee'] = {"Error": f"{str(e)}", "code": 500}
+        return  results    
+    
+    @staticmethod    
+    def validate_empid(payload):
+        empid = json.loads(json.dumps(payload))
+        data = {'fullname':'Nill'}
+        commands =""" Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
         
-        if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
-            results['Employee'] = data
-        else:
-            results['Employee'] = {
-        "Error": f"the Entra name does not match with the provided {data.get('Name')}",
-        "code": 401
-        }
+        results = {}
+        # for name, ps_script in commands.items():
+        for ou in app_config.__OU__:
+            commands = commands.replace("@@@_EmpID_@@@", empid['EmployeeID'])
+            commands = commands.replace("@@@_searchbase_@@@",ou)
+            prc = subprocess.run(
+                ["powershell", "-Command", commands.strip()], capture_output=True, text=True
+            ) 
+            if prc.returncode != 0:
+                results['EmployeeInfo'] = f"Error: {prc.stderr.strip()}"
+                continue
+                # raise APIException(results['EmployeeInfo'],500) 
+            else: 
+                try:
+                    data = json.loads(prc.stdout)                     
+                    results['EmployeeInfo'] = data
+                    break
+                except json.JSONDecodeError:
+                    results['EmployeeInfo'] = {"Error": "Invalid JSON output", "code": 500}
+                    continue
+        try:
+            if data.get('EmployeeID').strip() == empid['EmployeeID'].strip() :
+                results['EmployeeInfo'] = data
+            else:
+                results['EmployeeInfo'] = {
+            "Error": f"the Entra name does not match with the provided {data.get('Name')}",
+            "code": 401
+            }
+                raise Exception(results)
+        except json.JSONDecodeError:
+            results['EmployeeInfo'] = {"Error": "Invalid JSON output", "code": 500}
         
-        return  results
-
+        return  results    
     
     @staticmethod
     def exists_empId(empid:str) -> bool:
-        pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object EmployeeID ) """
-        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
-        prc = subprocess.run(
-                        ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-                    )
-        return prc.stdout.strip().lower() == "true"
+        for uo in app_config.__OU__:
+            pwsh_command= """[bool](Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object EmployeeID ) """
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", empid)
+            prc = subprocess.run(
+                            ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                        )
+            if prc.stdout.strip().lower() == "true":
+                return True            
+        return False
     
     @staticmethod
     def exists_FullEmployee_username(username:str) -> bool:
-        pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
-        pwsh_command = pwsh_command.replace("@@@username@@@",username)
-        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        prc = subprocess.run(
-                        ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-                    )
-        return prc.stdout.strip().lower() == "true"
+        for uo in app_config.__OU__:
+            pwsh_command= """[bool]( Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object Name, SamAccountName, EmployeeID) """
+            pwsh_command = pwsh_command.replace("@@@username@@@",username)
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
+            prc = subprocess.run(
+                            ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                        )            
+            if prc.stdout.strip().lower() == "true":
+                return True
+        return False
     
     @staticmethod
     def get_employee_general_info_username(username:str):
-        pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } @@@_searchbase_@@@ -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
-        data =""
-        pwsh_command = pwsh_command.replace('@@@username@@@',username)
-        pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",app_config.__OU__)
-        prc = subprocess.run(
-            ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-            ) 
-        if prc.returncode != 0:
-            raise UserADNoUpdatedException(f"{prc.stderr.strip()}")
-        
-        return json.loads(prc.stdout.strip()) 
+        result =''
+        for uo in app_config.__OU__:
+            pwsh_command =""" Get-ADUser -Filter { SamAccountName -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command = pwsh_command.replace('@@@username@@@',username)
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
+            prc = subprocess.run(
+                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                ) 
+            if prc.returncode != 0:
+                result = f"{prc.stderr.strip()}"
+                continue
+            else:
+                return json.loads(prc.stdout.strip()) 
+        if result:
+            raise UserADNoUpdatedException(result)            
     
     @staticmethod    
     def modify_user(payload):
@@ -134,7 +191,7 @@ class UserService:
                 employee.save()
                 
             #replace EmpID            
-            pwsh_command = """ Set-ADUser -Identity '@@@username@@@' -Replace @{employeeId='@@@_EmpID_@@@'} """
+            pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{employeeId="@@@_EmpID_@@@"} """
             pwsh_command = pwsh_command.replace("@@@username@@@",usr_pay['username'].strip())
             pwsh_command = pwsh_command.replace("@@@_EmpID_@@@",usr_pay['employeeId'].strip())
             prc = subprocess.run(

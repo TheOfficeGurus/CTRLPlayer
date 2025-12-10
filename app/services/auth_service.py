@@ -23,24 +23,24 @@ class AuthService:
             for line in fh:
                 sk_list.append(line.strip())
                 
-        if not sk_list[0]==phrase or not sk_list[1]==environment:
+        if not phrase in sk_list or not sk_list[1]==environment:
             raise TokenClaimsMismatch()
         
         with open(f'{app_config.__secret_path__}_{environment}/services.json', 'r') as fh:
             for line in fh:
-                services.append(line)
+                services.append(line.strip())
                 
         if not  service in services:
             raise TokenClaimsMismatch() 
             
         with open(f'{app_config.__secret_path__}_{environment}/conf.json', 'r') as fh:
             for line in fh:
-                conf.append(line)
+                conf.append(line.rstrip("\n"))
             
         if not conf:
             raise TokenClaimsMismatch()
         
-        app_config.__OU__ = conf[0]
+        app_config.__OU__ = conf
         
     
     @staticmethod    

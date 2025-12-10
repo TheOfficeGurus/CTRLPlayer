@@ -5,12 +5,12 @@ class Config:
     SECRET_KEY=""
     _KEY_ = hashlib.sha256(SECRET_KEY.encode()).digest()
     __secret_path__ ='c:/secrets/CTRLPlayer'
-    __OU__ = "" 
+    __OU__ = []
     __env__=""
     __file_path__="2A3BD56F-2227-42BD-9378-32EA031982F8.json"
     __database__=""
     __database_phrase__=""
-    
+    __selected_uo__=''
     
     @staticmethod
     def getconf():
