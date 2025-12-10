@@ -1,5 +1,6 @@
 import json
 import subprocess
+import re
 from app.config import Config as app_config
 from app.exceptions.custom_exceptions import APIException, UserNotFoundException,UserADNoUpdatedException,UserEmpIDInUseException
 from app.utils.helpers import  error_response
@@ -264,7 +265,7 @@ class UserService:
             guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
             
             if guru_data:
-                if not dbEmpLog.find_by_EmployeeId(guru_data['EmployeeID']):
+                if not dbEmpLog.find_by_username(guru_data['username']):
                     employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
                     employee.save()
                 
@@ -281,11 +282,14 @@ class UserService:
                 #Validate changes
                 data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
                 if data:
-                    if data.get('EmployeeId').strip() == usr['guru_employeeID'].strip():
-                        results['Employee'] = data                    
-                        employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],'new supervisor assignation')
+                    if data['EmployeeID'].strip() == usr['guru_employeeID'].strip():                        
+                        match = re.search(r"CN=([^,]+)", data['Manager'], re.IGNORECASE)
+                        data['Manager'] = match.group(1).strip() if match else None                        
+                        results['Employee'] = data
+                        
+                        employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],f'new supervisor assigned {data['Manager']} ')
                         employee.save()           
-                    
+                    # CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com
                 
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
