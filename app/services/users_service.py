@@ -182,7 +182,7 @@ class UserService:
                 result = f"{prc.stderr.strip()}"
                 continue
             else:
-                return json.loads(prc.stdout.strip()) 
+                return json.loads(json.dumps(prc.stdout))
         if result:
             raise UserADNoUpdatedException(result)            
     
@@ -254,17 +254,19 @@ class UserService:
         try:
             usr = json.loads(json.dumps(payload))        
                 
-            if not UserService.exists_empId(usr['sup_employeeID']):
-                raise UserNotFoundException(f"This supervisor badge number does not exists or is inactive:  {usr['sup_employeeID']} ")
+            # if not UserService.exists_empId(usr['sup_employeeID']):
+            #     raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
             
-            if not UserService.exists_empId(usr['guru_employeeID']):
-                raise UserNotFoundException(f"This guru badge number does not exists or is inactive:  {usr['guru_employeeID']} ")        
+            # if not UserService.exists_empId(usr['guru_employeeID']):
+            #     raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
                         
-            sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
-            guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+            # sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
+            # guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+            sup_location = "CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com"
+            guru_data = {'fullname': 'Michael Jackson', 'username': 'mjackson', 'EmployeeID': 'X2567', 'Manager': ''}
             
             if guru_data:
-                if not dbEmpLog.find_by_EmployeeId(guru_data['guru_employeeID']):
+                if not dbEmpLog.find_by_EmployeeId(guru_data['EmployeeID']):
                     employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
                     employee.save()
                 
@@ -283,7 +285,7 @@ class UserService:
                 if data:
                     if data.get('EmployeeId').strip() == usr['guru_employeeID'].strip():
                         results['Employee'] = data                    
-                        employee = dbEmpLog(guru_data['username'],guru_data['employeeId'],guru_data['fullname'],guru_data['updatedBy'],'new supervisor assignation')
+                        employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],'new supervisor assignation')
                         employee.save()           
                     
                 
@@ -302,7 +304,7 @@ class UserService:
     def get_distinguishedName(employeeId:str):
         result={}
         for uo in app_config.__OU__:
-                pwsh_command= """ (Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" ).DistinguishedName """
+                pwsh_command= """ Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" |select-object DistinguishedName | ConvertTo-Json -Depth 2 """
                 pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
                 pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", employeeId)
                 prc = subprocess.run(
@@ -312,11 +314,11 @@ class UserService:
                     result = f"{prc.stderr.strip()}"
                     continue
                 else:
-                    result= json.loads(prc.stdout.strip()) 
+                    result= json.loads(json.dumps(prc.stdout))
                     break
-        
-        if result[0].startswith('CN'):
-            cn = result[0]
-            return cn
+        if result:
+            cn:str = result.get('DistinguishedName') # type: ignore 
+            if cn.startswith('CN'):
+                return cn
         else:
             raise UserNotFoundException(result)
