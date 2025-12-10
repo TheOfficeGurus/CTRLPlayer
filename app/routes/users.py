@@ -69,7 +69,7 @@ def modify():
     return message.success_response(result)
 
 @users_bp.route('/getByEmpid', methods=['POST'])
-@authorize(required_claims={'service': 'LEXDATA'})
+@authorize(required_claims={'service': 'LEXDATA', 'service':'FLUX'})
 def getByEmpid():
     try:
         if request.json is None:
@@ -86,4 +86,23 @@ def getByEmpid():
     except Exception as e:
         return message.error_response(f'getByEmpid: {str(e)}',500)
     
+    return message.success_response(result)
+
+@users_bp.route('/assingSuppervisor', methods=['POST'])
+@authorize(required_claims={'service': 'LEXDATA'})
+def assingSuppervisor():
+    try:
+        if request.json is None:
+            raise InvalidRequestError()
+        if [key for key in request.json if key not in ['guru_employeeID','sup_employeeID','updatedBy']]:
+            raise TokenClaimsMismatch
+        
+        result = UserService.assing_New_Supervisor(request.json)
+        
+    except InvalidRequestError as e:
+        return message.error_response(str(e.message))
+    except TokenClaimsMismatch as e:
+        return message.error_response(str(e.message))
+    except Exception as e:
+        return message.error_response(f'assignationSup: {str(e)}',500)
     return message.success_response(result)

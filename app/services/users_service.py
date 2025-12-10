@@ -168,6 +168,24 @@ class UserService:
         if result:
             raise UserADNoUpdatedException(result)            
     
+    @staticmethod
+    def get_employee_general_info_employeeid(employeeId:str):
+        result =''
+        for uo in app_config.__OU__:
+            pwsh_command =""" Get-ADUser -Filter { EmployeeID -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command = pwsh_command.replace('@@@username@@@',employeeId)
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
+            prc = subprocess.run(
+                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                ) 
+            if prc.returncode != 0:
+                result = f"{prc.stderr.strip()}"
+                continue
+            else:
+                return json.loads(prc.stdout.strip()) 
+        if result:
+            raise UserADNoUpdatedException(result)            
+    
     @staticmethod    
     def modify_user(payload):
         results ={}
@@ -178,17 +196,17 @@ class UserService:
             results = {}
             
             if not UserService.exists_FullEmployee_username(usr_pay['username']):
-                raise UserNotFoundException(f"This username `{usr_pay['username']}` does not exists or you don have access to the OU folder")
+                raise UserNotFoundException(f"This username `{usr_pay['username']}` does not exists or you dont have access to the OU folder")
             
             if UserService.exists_empId(usr_pay['employeeId']):
                 raise UserEmpIDInUseException(f"This EmployeeId {usr_pay['employeeId']} is been used by other employee")
             
             data = UserService.get_employee_general_info_username(usr_pay['username'])
-
-            if not dbEmpLog.find_by_username(usr_pay['username']):
-                employee = dbEmpLog(data.get('username').strip(),data.get('EmployeeID').strip(),data.get('fullname').strip(),'sys','base info before change')
-                # employee = dbEmpLog(usr_pay['username'],usr_pay['employeeId'].strip(),usr_pay['fullname'],'sys','base info before change')
-                employee.save()
+            if data:
+                if not dbEmpLog.find_by_username(usr_pay['username']):
+                    employee = dbEmpLog(data.get('username').strip(),data.get('EmployeeID').strip(),data.get('fullname').strip(),'sys','base info before change')
+                    # employee = dbEmpLog(usr_pay['username'],usr_pay['employeeId'].strip(),usr_pay['fullname'],'sys','base info before change')
+                    employee.save()
                 
             #replace EmpID            
             pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{employeeId="@@@_EmpID_@@@"} """
@@ -200,12 +218,13 @@ class UserService:
             if prc.returncode != 0:
                 raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
             
-            results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])            
+            results['Assigned'] = UserService.exists_empId(usr_pay['employeeId'])
             
             #Validate changes
             data = UserService.get_employee_general_info_username(usr_pay['username'])
-            if data.get('fullname').strip() == usr_pay['fullname'].strip() and data.get('username').strip() == usr_pay['username'].strip():
-                results['Employee'] = data
+            if data:
+                if data.get('fullname').strip() == usr_pay['fullname'].strip() and data.get('username').strip() == usr_pay['username'].strip():
+                    results['Employee'] = data
             
             employee = dbEmpLog(usr_pay['username'],usr_pay['employeeId'],usr_pay['fullname'],usr_pay['updatedBy'],'new employee Id assignation')
             employee.save()
@@ -227,3 +246,77 @@ class UserService:
             return results
             
         return results     
+
+    @staticmethod
+    def assing_New_Supervisor(payload):
+        
+        results ={}
+        try:
+            usr = json.loads(json.dumps(payload))        
+                
+            if not UserService.exists_empId(usr['sup_employeeID']):
+                raise UserEmpIDInUseException(f"This supervisor badge number does not exists or is inactive:  {usr['sup_employeeID']} ")
+            
+            if not UserService.exists_empId(usr['guru_employeeID']):
+                raise UserEmpIDInUseException(f"This guru badge number does not exists or is inactive:  {usr['guru_employeeID']} ")        
+                        
+            sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
+            guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+            
+            if guru_data:
+                if not dbEmpLog.find_by_EmployeeId(guru_data['guru_employeeID']):
+                    employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
+                    employee.save()
+                
+                pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{Manager="@@@sup_Loc@@@"} """
+                pwsh_command = pwsh_command.replace('@@@sup_Loc@@@',sup_location)
+                pwsh_command = pwsh_command.replace('@@@username@@@',guru_data['username'])
+                prc = subprocess.run(
+                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                )
+                if prc.returncode != 0:
+                    raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
+                
+                results['Assigned'] = UserService.exists_empId(usr['guru_employeeID'])
+                #Validate changes
+                data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
+                if data:
+                    if data.get('EmployeeId').strip() == usr['guru_employeeID'].strip():
+                        results['Employee'] = data                    
+                        employee = dbEmpLog(guru_data['username'],guru_data['employeeId'],guru_data['fullname'],guru_data['updatedBy'],'new supervisor assignation')
+                        employee.save()           
+                    
+                
+        except json.JSONDecodeError:
+            results['Error'] = "Error Invalid JSON output"
+        except UserEmpIDInUseException as r :            
+            results['Error']=f"{r.message}"
+        except UserADNoUpdatedException as e:
+            results['Error']=f"{e.message}"
+        except Exception as e:
+            results['Error']=f"assignSupervidor: {str(e)}"
+        finally:
+            return results
+
+    @staticmethod
+    def get_distinguishedName(employeeId:str):
+        result={}
+        for uo in app_config.__OU__:
+                pwsh_command= """ (Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" ).DistinguishedName """
+                pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
+                pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", employeeId)
+                prc = subprocess.run(
+                                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
+                            )
+                if prc.returncode != 0:
+                    result = f"{prc.stderr.strip()}"
+                    continue
+                else:
+                    result= json.loads(prc.stdout.strip()) 
+                    break
+        
+        if result[0].startswith('CN'):
+            cn = result[0]
+            return cn
+        else:
+            raise UserNotFoundException(result)
