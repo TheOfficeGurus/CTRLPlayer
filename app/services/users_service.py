@@ -69,7 +69,7 @@ class UserService:
                     results['Employee'] = {"Error": "Invalid JSON output", "code": 500}
         
         try:
-            if data.get('fullname').strip() == user['fullname'].strip() :
+            if data.get('fullname').strip() == user['fullname'].strip() : # type: ignore
                 results['Employee'] = data
             else:
                 results['Employee'] = {
@@ -111,7 +111,7 @@ class UserService:
                     results['EmployeeInfo'] = {"Error": "Invalid JSON output", "code": 500}
                     continue
         try:
-            if data.get('EmployeeID').strip() == empid['EmployeeID'].strip() :
+            if data.get('EmployeeID').strip() == empid['EmployeeID'].strip() : # type: ignore
                 results['EmployeeInfo'] = data
             else:
                 results['EmployeeInfo'] = {
