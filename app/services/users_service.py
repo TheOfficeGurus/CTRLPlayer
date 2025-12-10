@@ -254,16 +254,14 @@ class UserService:
         try:
             usr = json.loads(json.dumps(payload))        
                 
-            # if not UserService.exists_empId(usr['sup_employeeID']):
-            #     raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
+            if not UserService.exists_empId(usr['sup_employeeID']):
+                raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
             
-            # if not UserService.exists_empId(usr['guru_employeeID']):
-            #     raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
+            if not UserService.exists_empId(usr['guru_employeeID']):
+                raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
                         
-            # sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
-            # guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
-            sup_location = "CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com"
-            guru_data = {'fullname': 'Michael Jackson', 'username': 'mjackson', 'EmployeeID': 'X2567', 'Manager': ''}
+            sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
+            guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
             
             if guru_data:
                 if not dbEmpLog.find_by_EmployeeId(guru_data['EmployeeID']):
