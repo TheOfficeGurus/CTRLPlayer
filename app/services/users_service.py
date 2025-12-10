@@ -1,4 +1,6 @@
+from datetime import date
 import json
+import os
 import subprocess
 import re
 from app.config import Config as app_config
@@ -6,8 +8,13 @@ from app.exceptions.custom_exceptions import APIException, UserNotFoundException
 from app.utils.helpers import  error_response
 from app.models.employeeChangeLog import EmployeeChangeLog as dbEmpLog
 from app.models.base import db
-
+import logging
 class UserService:
+    basefile = os.path.abspath(__file__)
+    basepath = os.path.dirname(basefile)
+    log_file:str = basepath+'\\Log\\'+'ctrlPlayer_'+str(date.today())+'.log'
+    logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',filename=log_file, filemode='a')
+    
     # @staticmethod    
     # def validate_username(payload):
     #     user = json.loads(json.dumps(payload))
@@ -256,25 +263,25 @@ class UserService:
             usr = json.loads(json.dumps(payload))        
                 
             if not UserService.exists_empId(usr['sup_employeeID']):
-                print('sup_emp not exists')
+                logging.info('sup_emp not exists')
                 raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
             
             if not UserService.exists_empId(usr['guru_employeeID']):
-                print('guru emp not exists')
+                logging.info('guru emp not exists')
                 raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
                         
             sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
-            print('got sup Location')
+            logging.info('got sup Location')
             guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
-            print('got gurudata Location')
+            logging.info('got gurudata Location')
             
             if guru_data:
                 if not dbEmpLog.find_by_username(guru_data['username']):
-                    print('new record on databae')
+                    logging.info('new record on databae')
                     employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
                     employee.save()
                 
-                print('building setad query')
+                logging.info('building setad query')
                 pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{Manager="@@@sup_Loc@@@"} """
                 pwsh_command = pwsh_command.replace('@@@sup_Loc@@@',sup_location)
                 pwsh_command = pwsh_command.replace('@@@username@@@',guru_data['username'])
@@ -282,26 +289,26 @@ class UserService:
                 ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                 )
                 if prc.returncode != 0:
-                    print('error on pwsh_command execution')
+                    logging.info('error on pwsh_command execution')
                     raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
                 
                 results['Assigned'] = UserService.exists_empId(usr['guru_employeeID'])
-                print('result assigned value')
+                logging.info('result assigned value')
                 #Validate changes
                 data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
-                print('got data validation for data variable')
+                logging.info('got data validation for data variable')
                 if data:
-                    print('we are sure the variable data has data')
+                    logging.info('we are sure the variable data has data')
                     if data['EmployeeID'].strip() == usr['guru_employeeID'].strip():                        
-                        print('emp id match with sent')
+                        logging.info('emp id match with sent')
                         match = re.search(r"CN=([^,]+)", data['Manager'], re.IGNORECASE)
                         data['Manager'] = match.group(1).strip() if match else None                        
                         results['Employee'] = data
                         
-                        print('saving change on db')
+                        logging.info('saving change on db')
                         employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],f'new supervisor assigned {data['Manager']} ')
                         employee.save()           
-                        print('saved')
+                        logging.info('saved')
                     # CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com
                 
         except json.JSONDecodeError:
