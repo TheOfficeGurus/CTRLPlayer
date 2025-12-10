@@ -172,7 +172,7 @@ class UserService:
     def get_employee_general_info_employeeid(employeeId:str):
         result =''
         for uo in app_config.__OU__:
-            pwsh_command =""" Get-ADUser -Filter { EmployeeID -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """            
+            pwsh_command =""" Get-ADUser -Filter { EmployeeID -eq "@@@username@@@" } -SearchBase "@@@_searchbase_@@@" -Properties EmployeeId, Name, Manager | Select-Object @{Name="fullname";Expression={$_.Name}}, @{Name="username";Expression={$_.SamAccountName}}, EmployeeID, Manager | ConvertTo-Json -Depth 2 """            
             pwsh_command = pwsh_command.replace('@@@username@@@',employeeId)
             pwsh_command = pwsh_command.replace("@@@_searchbase_@@@",uo)
             prc = subprocess.run(
