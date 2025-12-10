@@ -255,10 +255,10 @@ class UserService:
             usr = json.loads(json.dumps(payload))        
                 
             if not UserService.exists_empId(usr['sup_employeeID']):
-                raise UserEmpIDInUseException(f"This supervisor badge number does not exists or is inactive:  {usr['sup_employeeID']} ")
+                raise UserNotFoundException(f"This supervisor badge number does not exists or is inactive:  {usr['sup_employeeID']} ")
             
             if not UserService.exists_empId(usr['guru_employeeID']):
-                raise UserEmpIDInUseException(f"This guru badge number does not exists or is inactive:  {usr['guru_employeeID']} ")        
+                raise UserNotFoundException(f"This guru badge number does not exists or is inactive:  {usr['guru_employeeID']} ")        
                         
             sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
             guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
@@ -289,7 +289,7 @@ class UserService:
                 
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
-        except UserEmpIDInUseException as r :            
+        except UserNotFoundException as r :            
             results['Error']=f"{r.message}"
         except UserADNoUpdatedException as e:
             results['Error']=f"{e.message}"

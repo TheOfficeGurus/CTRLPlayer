@@ -78,6 +78,8 @@ def getByEmpid():
             raise TokenClaimsMismatch()
             
         result = UserService.validate_empid(request.json)
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
@@ -98,6 +100,8 @@ def assingSuppervisor():
             raise TokenClaimsMismatch
         
         result = UserService.assing_New_Supervisor(request.json)
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
@@ -105,4 +109,5 @@ def assingSuppervisor():
         return message.error_response(str(e.message))
     except Exception as e:
         return message.error_response(f'assignationSup: {str(e)}',500)
+    
     return message.success_response(result)

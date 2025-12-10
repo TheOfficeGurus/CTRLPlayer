@@ -36,7 +36,8 @@ class UserADNoUpdatedException(UserExceptions):
         self.message = message
 class UserNotFoundException(UserExceptions):
     def __init__(self,message):
-        super().__init__("User not found")
+        # super().__init__("User not found")
+        self.message=message
 class UserEmpIDInUseException(UserExceptions):
     def __init__(self,message):
         super().__init__("Employee ID is in use by another user")
