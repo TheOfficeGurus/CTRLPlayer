@@ -7,44 +7,44 @@ from app.models.employeeChangeLog import EmployeeChangeLog as dbEmpLog
 from app.models.base import db
 
 class UserService:
-    @staticmethod    
-    def validate_username(payload):
-        user = json.loads(json.dumps(payload))
-        data = {'username':'Nill'}
-        commands = {
-        "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase  "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
-        }   
-        results = {}
-        for name, ps_script in commands.items():
-            for uo in app_config.__OU__:
-                ps_script = (
-                    ps_script.replace("@@@username@@@",user['username'])
-                )
-                ps_script = (
-                    ps_script.replace("@@@_searchbase_@@@",app_config.__selected_uo__)
-                )
-                prc = subprocess.run(
-                    ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
-                ) 
-                if prc.returncode != 0:
-                    results[name] = f"Error: {prc.stderr.strip()}"
-                    continue            
+    # @staticmethod    
+    # def validate_username(payload):
+    #     user = json.loads(json.dumps(payload))
+    #     data = {'username':'Nill'}
+    #     commands = {
+    #     "VerifyUserAD":""" Get-ADUser -Filter { SamAccountName -eq '@@@username@@@' } -SearchBase  "@@@_searchbase_@@@" -Properties EmployeeId, Name | Select-Object @{Name='fullname';Expression={$_.Name}}, @{Name='username';Expression={$_.SamAccountName}}, EmployeeID | ConvertTo-Json -Depth 2 """
+    #     }   
+    #     results = {}
+    #     for name, ps_script in commands.items():
+    #         for uo in app_config.__OU__:
+    #             ps_script = (
+    #                 ps_script.replace("@@@username@@@",user['username'])
+    #             )
+    #             ps_script = (
+    #                 ps_script.replace("@@@_searchbase_@@@",uo)
+    #             )
+    #             prc = subprocess.run(
+    #                 ["powershell", "-Command", ps_script.strip()], capture_output=True, text=True
+    #             ) 
+    #             if prc.returncode != 0:
+    #                 results[name] = f"Error: {prc.stderr.strip()}"
+    #                 continue            
                 
-                try:
-                    data = json.loads(prc.stdout) 
-                except json.JSONDecodeError:
-                    results[name] = {"Error": "Invalid JSON output", "code": 500}
-                    continue
-            
-            if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
-                results[name] = data
-            else:
-                results[name] = {
-            "Error": f"the Entra name does not match with the provided {data.get('Name')}",
-            "code": 401
-            }   
+    #             try:
+    #                 data = json.loads(prc.stdout) 
+    #             except json.JSONDecodeError:
+    #                 results[name] = {"Error": "Invalid JSON output", "code": 500}
+    #                 continue
+    #         if data:
+    #             if data.get('fullname').strip() == user['fullname'].strip() and data.get('username').strip() == user['username'].strip():
+    #                 results[name] = data
+    #         else:
+    #             results[name] = {
+    #         "Error": f"the Entra name does not match with the provided {data.get('Name')}",
+    #         "code": 401
+    #         }   
         
-        return  results
+    #     return  results
     @staticmethod    
     def validate_fullname(payload):
         user = json.loads(json.dumps(payload))
