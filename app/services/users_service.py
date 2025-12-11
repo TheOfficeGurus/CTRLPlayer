@@ -112,7 +112,7 @@ class UserService:
                 # raise APIException(results['EmployeeInfo'],500) 
             else: 
                 try:
-                    data = json.loads(prc.stdout)                     
+                    data = json.loads(prc.stdout)
                     results['EmployeeInfo'] = data
                     break
                 except json.JSONDecodeError:
@@ -142,7 +142,7 @@ class UserService:
                             ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
                         )
             if prc.stdout.strip().lower() == "true":
-                return True            
+                return True
         return False
     
     @staticmethod
@@ -174,7 +174,7 @@ class UserService:
             else:
                 return json.loads(prc.stdout.strip()) 
         if result:
-            raise UserADNoUpdatedException(result)            
+            raise UserADNoUpdatedException(result)
     
     @staticmethod
     def get_employee_general_info_employeeid(employeeId:str):
@@ -192,7 +192,7 @@ class UserService:
             else:
                 return json.loads(json.dumps(prc.stdout))
         if result:
-            raise UserADNoUpdatedException(result)            
+            raise UserADNoUpdatedException(result)
     
     @staticmethod    
     def modify_user(payload):
@@ -257,63 +257,48 @@ class UserService:
 
     @staticmethod
     def assing_New_Supervisor(payload):
-        
         results ={}
         try:
-            usr = json.loads(json.dumps(payload))        
-                
+            usr = json.loads(json.dumps(payload))
+            
             if not UserService.exists_empId(usr['sup_employeeID']):
-                logging.info('sup_emp not exists')
                 raise UserNotFoundException(f"This supervisor badge number does not exists, is inactive or is out of context:  {usr['sup_employeeID']} ")
             
             if not UserService.exists_empId(usr['guru_employeeID']):
-                logging.info('guru emp not exists')
-                raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")        
-                        
+                raise UserNotFoundException(f"This guru badge number does not exists, is inactive or is out of context:  {usr['guru_employeeID']} ")
+            
             sup_location = UserService.get_distinguishedName (usr['sup_employeeID'])
-            logging.info('got sup Location')
-            guru_data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
-            logging.info('got gurudata Location')
+            guru_data = json.loads(UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])) # type: ignore
             
             if guru_data:
                 if not dbEmpLog.find_by_username(guru_data['username']):
-                    logging.info('new record on databae')
                     employee = dbEmpLog(guru_data.get('username').strip(),guru_data.get('EmployeeID').strip(),guru_data.get('fullname').strip(),'sys','base info before change')
                     employee.save()
                 
-                logging.info('building setad query')
                 pwsh_command = """ Set-ADUser -Identity "@@@username@@@" -Replace @{Manager="@@@sup_Loc@@@"} """
-                pwsh_command = pwsh_command.replace('@@@sup_Loc@@@',sup_location)
                 pwsh_command = pwsh_command.replace('@@@username@@@',guru_data['username'])
-                prc = subprocess.run(
-                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-                )
+                pwsh_command = pwsh_command.replace('@@@sup_Loc@@@',sup_location)
+                prc = subprocess.run(["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True)
+                
                 if prc.returncode != 0:
-                    logging.info('error on pwsh_command execution')
                     raise UserADNoUpdatedException (f"Error: {prc.stderr.strip()}")
                 
                 results['Assigned'] = UserService.exists_empId(usr['guru_employeeID'])
-                logging.info('result assigned value')
+                
                 #Validate changes
-                data = UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])
-                logging.info('got data validation for data variable')
+                data = json.loads(UserService.get_employee_general_info_employeeid(usr['guru_employeeID'])) # type: ignore
                 if data:
-                    logging.info('we are sure the variable data has data')
-                    if data['EmployeeID'].strip() == usr['guru_employeeID'].strip():                        
-                        logging.info('emp id match with sent')
+                    if data['EmployeeID'].strip() == usr['guru_employeeID'].strip():
                         match = re.search(r"CN=([^,]+)", data['Manager'], re.IGNORECASE)
-                        data['Manager'] = match.group(1).strip() if match else None                        
+                        data['Manager'] = match.group(1).strip() if match else None
                         results['Employee'] = data
                         
-                        logging.info('saving change on db')
-                        employee = dbEmpLog(data['username'],data['employeeId'],data['fullname'],data['updatedBy'],f'new supervisor assigned {data['Manager']} ')
-                        employee.save()           
-                        logging.info('saved')
-                    # CN=Rigoberto Alcides Rodriguez Rodriguez,OU=DBA-SA,OU=TOG Information T.,DC=TOGDOMAINSV,DC=com
+                        employee = dbEmpLog(username=data['username'],employeeId=data['EmployeeID'],full_name=data['fullname'],updated_by=usr['updatedBy'],change_desc=f'new supervisor assigned {data['Manager']} ')
+                        employee.save()
                 
         except json.JSONDecodeError:
             results['Error'] = "Error Invalid JSON output"
-        except UserNotFoundException as r :            
+        except UserNotFoundException as r :
             results['Error']=f"{r.message}"
         except UserADNoUpdatedException as e:
             results['Error']=f"{e.message}"
@@ -324,23 +309,30 @@ class UserService:
 
     @staticmethod
     def get_distinguishedName(employeeId:str):
-        result={}
+        result = None
         for uo in app_config.__OU__:
-                pwsh_command= """ Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" |select-object DistinguishedName | ConvertTo-Json -Depth 2 """
-                pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
-                pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", employeeId)
-                prc = subprocess.run(
-                                ["powershell", "-Command", pwsh_command.strip()], capture_output=True, text=True
-                            )
-                if prc.returncode != 0:
-                    result = f"{prc.stderr.strip()}"
-                    continue
-                else:
-                    result= json.loads(json.dumps(prc.stdout))
-                    break
-        if result:
-            cn:str = result.get('DistinguishedName') # type: ignore 
-            if cn.startswith('CN'):
-                return cn
-        else:
-            raise UserNotFoundException(result)
+            pwsh_command = """ Get-ADUser -Filter { EmployeeId -eq "@@@_EmpID_@@@" } -SearchBase "@@@_searchbase_@@@" | Select-Object DistinguishedName | ConvertTo-Json -Depth 2 """
+            pwsh_command = pwsh_command.replace("@@@_searchbase_@@@", uo)
+            pwsh_command = pwsh_command.replace("@@@_EmpID_@@@", employeeId)
+            
+            prc = subprocess.run(
+                ["powershell", "-Command", pwsh_command.strip()],
+                capture_output=True,
+                text=True
+            )
+
+            if prc.returncode != 0:
+                result = prc.stderr
+                continue
+        
+            if prc.stdout:            
+                data = json.loads(prc.stdout)
+                
+                if isinstance(data, list) and len(data) > 0:
+                    data = data[0]
+                
+                dn = data.get("DistinguishedName") # type: ignore
+                if dn and dn.startswith("CN="):
+                    return dn
+
+        raise UserNotFoundException(result)
