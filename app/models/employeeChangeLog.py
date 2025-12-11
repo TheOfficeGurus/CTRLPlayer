@@ -29,7 +29,7 @@ class EmployeeChangeLog(BaseModel):
     @classmethod
     def find_by_EmployeeId(cls, employeeId):
         """Buscar usuario por username"""
-        return cls.query.filter_by(employeeId=employeeId).first()
+        return cls.query.filter_by(employee_id=employeeId).first()
 
     def to_dict(self):
         """Convertir a diccionario"""

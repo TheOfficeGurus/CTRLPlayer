@@ -6,25 +6,25 @@ import app.utils.helpers as message
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 
-@users_bp.route('/verify', methods=['POST'])
-@authorize(required_claims={'service': 'ATS'})
-def verify():
-    try:
-        if request.json is None:
-            raise InvalidRequestError()
-        if [key for key in request.json if key not in ['username', 'fullname']]:
-            raise TokenClaimsMismatch()
+# @users_bp.route('/verify', methods=['POST'])
+# @authorize(required_claims={'service': 'ATS'})
+# def verify():
+#     try:
+#         if request.json is None:
+#             raise InvalidRequestError()
+#         if [key for key in request.json if key not in ['username', 'fullname']]:
+#             raise TokenClaimsMismatch()
             
-        result = UserService.validate_username(request.json)
+#         result = UserService.validate_username(request.json)
         
-    except InvalidRequestError as e:
-        return message.error_response(str(e.message))
-    except TokenClaimsMismatch as e:
-        return message.error_response(str(e.message))
-    except Exception as e:
-        return message.error_response(f'login: {str(e)}',500)
+#     except InvalidRequestError as e:
+#         return message.error_response(str(e.message))
+#     except TokenClaimsMismatch as e:
+#         return message.error_response(str(e.message))
+#     except Exception as e:
+#         return message.error_response(f'login: {str(e)}',500)
     
-    return message.success_response(result)
+#     return message.success_response(result)
 
 @users_bp.route('/verify_fullname', methods=['POST'])
 @authorize(required_claims={'service': 'ATS'})
@@ -69,7 +69,7 @@ def modify():
     return message.success_response(result)
 
 @users_bp.route('/getByEmpid', methods=['POST'])
-@authorize(required_claims={'service': 'LEXDATA'})
+@authorize(required_claims={'service': 'LEXDATA', 'service':'FLUX'})
 def getByEmpid():
     try:
         if request.json is None:
@@ -78,6 +78,8 @@ def getByEmpid():
             raise TokenClaimsMismatch()
             
         result = UserService.validate_empid(request.json)
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
         
     except InvalidRequestError as e:
         return message.error_response(str(e.message))
@@ -85,5 +87,27 @@ def getByEmpid():
         return message.error_response(str(e.message))
     except Exception as e:
         return message.error_response(f'getByEmpid: {str(e)}',500)
+    
+    return message.success_response(result)
+
+@users_bp.route('/assingSuppervisor', methods=['POST'])
+@authorize(required_claims={'service': 'FLUX'})
+def assingSuppervisor():
+    try:
+        if request.json is None:
+            raise InvalidRequestError()
+        if [key for key in request.json if key not in ['guru_employeeID','sup_employeeID','updatedBy']]:
+            raise TokenClaimsMismatch
+        
+        result = UserService.assing_New_Supervisor(request.json)
+        if [key for key in result if key in ['Error']]:
+            return message.error_response(result)
+        
+    except InvalidRequestError as e:
+        return message.error_response(str(e.message))
+    except TokenClaimsMismatch as e:
+        return message.error_response(str(e.message))
+    except Exception as e:
+        return message.error_response(f'assignationSup: {str(e)}',500)
     
     return message.success_response(result)
